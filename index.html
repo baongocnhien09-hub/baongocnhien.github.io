@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f9f5fb" />
+    <title>EOMLAND — SEARCH &amp; COMMENTS</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <div class="site-shell">
+      <header class="topbar">
+        <button class="brand" type="button" data-view="home" aria-label="EOMLAND, trang chủ">
+          <span class="brand-mark" aria-hidden="true">✦</span>
+          <span>EOMLAND</span>
+        </button>
+        <div class="topbar-actions">
+          <time class="clock" id="seoul-clock" aria-label="Giờ Seoul">--:--:--</time>
+          <button class="settings-button" id="open-settings" type="button" aria-label="Cài đặt" title="Cài đặt">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 8.25a3.75 3.75 0 1 0 0 7.5 3.75 3.75 0 0 0 0-7.5Z" />
+              <path d="m19.4 13.5 1.1.85-1.1 1.9-1.3-.45a7.6 7.6 0 0 1-1.55.9l-.2 1.35h-2.2l-.25-1.35a7.4 7.4 0 0 1-1.55-.9l-1.3.45-1.1-1.9 1.1-.85a6.8 6.8 0 0 1 0-1.8l-1.1-.85 1.1-1.9 1.3.45a7.6 7.6 0 0 1 1.55-.9l.25-1.35h2.2l.2 1.35a7.4 7.4 0 0 1 1.55.9l1.3-.45 1.1 1.9-1.1.85a6.8 6.8 0 0 1 0 1.8Z" />
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <main id="app-main" class="main-content" aria-live="polite"></main>
+
+      <footer class="site-footer">
+        <span>Dữ liệu và tiến độ được lưu trên thiết bị này.</span>
+      </footer>
+    </div>
+
+    <dialog class="settings-dialog" id="settings-dialog" aria-labelledby="settings-title">
+      <form method="dialog">
+        <div class="dialog-heading">
+          <div>
+            <p class="eyebrow">EOMLAND</p>
+            <h2 id="settings-title">Cài đặt</h2>
+          </div>
+          <button class="close-button" type="submit" aria-label="Đóng">×</button>
+        </div>
+        <p class="settings-description">Xóa riêng lịch sử của từng mục. Thao tác này cần xác nhận và không thể hoàn tác.</p>
+        <div class="settings-actions">
+          <button class="setting-row" type="button" data-clear="naver">
+            <span><strong>NAVER SEARCH</strong><small>Xóa bộ đếm và tiến độ hôm nay</small></span>
+            <span aria-hidden="true">›</span>
+          </button>
+          <button class="setting-row" type="button" data-clear="google">
+            <span><strong>GOOGLE SEARCH</strong><small>Xóa từ khóa đang xem</small></span>
+            <span aria-hidden="true">›</span>
+          </button>
+          <button class="setting-row" type="button" data-clear="comments">
+            <span><strong>NAVER COMMENTS</strong><small>Xóa các mẫu đã copy</small></span>
+            <span aria-hidden="true">›</span>
+          </button>
+        </div>
+      </form>
+    </dialog>
+  </body>
+</html>
