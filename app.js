@@ -221,7 +221,7 @@ function seoulDate() {
 function freshNaverState() {
   const sets = Object.fromEntries(data.naverSets.map((set) => [
     set.id,
-    { currentIndex: 0, copiedCount: 0 },
+    { currentIndex: 0, copiedCount: 0, copied: [] },
   ]));
   return {
     date: seoulDate(),
@@ -242,9 +242,38 @@ function loadNaverState() {
     const savedSet = saved.sets && saved.sets[set.id];
     if (savedSet && Number.isInteger(savedSet.currentIndex)
       && savedSet.currentIndex >= 0 && savedSet.currentIndex < set.keywords.length) {
+      const copied = [];
+      if (Array.isArray(savedSet.copied)) {
+        savedSet.copied.forEach((value) => {
+          if (Number.isInteger(value) && value >= 0 && value < set.keywords.length) {
+            if (!copied.includes(value)) {
+              copied.push(value);
+            }
+            return;
+          }
+          if (typeof value === "string") {
+            const legacyIndex = set.keywords.findIndex((keyword, index) => keyword === value && !copied.includes(index));
+            if (legacyIndex >= 0) {
+              copied.push(legacyIndex);
+            }
+          }
+        });
+      }
+      let copiedIndexes = copied;
+      if (copiedIndexes.length === set.keywords.length) {
+        copiedIndexes = [];
+      }
+      let currentIndex = savedSet.currentIndex;
+      if (copiedIndexes.includes(currentIndex)) {
+        const candidates = set.keywords
+          .map((_, index) => index)
+          .filter((index) => !copiedIndexes.includes(index));
+        currentIndex = candidates[randomIndex(candidates.length)];
+      }
       state.sets[set.id] = {
-        currentIndex: savedSet.currentIndex,
+        currentIndex,
         copiedCount: Number.isInteger(savedSet.copiedCount) && savedSet.copiedCount >= 0 ? savedSet.copiedCount : 0,
+        copied: copiedIndexes,
       };
     }
   });
@@ -255,6 +284,7 @@ function loadNaverState() {
       state.sets[saved.setId] = {
         currentIndex,
         copiedCount: 0,
+        copied: [],
       };
     }
   }
@@ -329,12 +359,23 @@ function currentNaverSet() {
   return data.naverSets.find((set) => set.id === selectedNaverSetId) || data.naverSets[0];
 }
 
-function naverKeywordIndex(set, currentIndex) {
-  const current = set.keywords[currentIndex];
-  const options = set.keywords
-    .map((keyword, index) => ({ keyword, index }))
-    .filter(({ keyword }) => keyword !== current);
-  return options.length > 0 ? options[randomIndex(options.length)].index : randomIndex(set.keywords.length);
+function naverKeywordCount(set) {
+  return set.keywords.length;
+}
+
+function naverKeywordIndex(set, state) {
+  let options = set.keywords
+    .map((_, index) => index)
+    .filter((index) => !state.copied.includes(index));
+  if (options.length === 0) {
+    state.copied = [];
+    options = set.keywords.map((_, index) => index);
+  }
+  const alternatives = options.filter((index) => index !== state.currentIndex);
+  if (alternatives.length > 0) {
+    options = alternatives;
+  }
+  return options[randomIndex(options.length)];
 }
 
 function advanceNaver(setId, copied = false) {
@@ -346,10 +387,16 @@ function advanceNaver(setId, copied = false) {
     return;
   }
   const state = naverState.sets[setId];
-  state.currentIndex = naverKeywordIndex(set, state.currentIndex);
   if (copied) {
     state.copiedCount += 1;
+    if (!state.copied.includes(state.currentIndex)) {
+      state.copied.push(state.currentIndex);
+    }
+    if (state.copied.length === naverKeywordCount(set)) {
+      state.copied = [];
+    }
   }
+  state.currentIndex = naverKeywordIndex(set, state);
   saveNaver();
 }
 
@@ -479,7 +526,7 @@ function renderNaver() {
       <nav class="menu-list set-list" aria-label="Chọn bộ từ khóa Naver">
         ${data.naverSets.map((set) => `
           <button class="menu-card" type="button" data-naver-set="${set.id}">
-            <span class="menu-card-copy"><strong>SET ${set.id}</strong><small>${escapeHtml(set.title)} · ${set.keywords.length} từ khóa</small></span>
+            <span class="menu-card-copy"><strong>SET ${set.id}</strong><small>${escapeHtml(set.title)} · ${naverKeywordCount(set)} từ khóa</small></span>
             <span class="menu-arrow" aria-hidden="true">›</span>
           </button>`).join("")}
       </nav>
@@ -497,7 +544,7 @@ function renderNaverSet() {
       <article class="keyword-panel">
         <p class="set-name">Set ${set.id} · ${escapeHtml(set.title)}</p>
         <p class="keyword-text" lang="ko">${escapeHtml(keyword)}</p>
-        <p class="counter-line">Đã copy ${state.copiedCount} lần hôm nay · ${set.keywords.length} từ khóa</p>
+        <p class="counter-line">Đã copy ${state.copiedCount} lần hôm nay · ${naverKeywordCount(set)} từ khóa</p>
         ${renderCopyStatus()}
       </article>
       ${renderManualCopy()}
