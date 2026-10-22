@@ -7,6 +7,7 @@ const STORAGE_KEYS = {
 
 const main = document.querySelector("#app-main");
 const clock = document.querySelector("#seoul-clock");
+const clockDate = document.querySelector("#seoul-date");
 const settingsDialog = document.querySelector("#settings-dialog");
 const musicFrame = document.querySelector("#music-frame");
 const musicToggle = document.querySelector("#music-toggle");
@@ -415,14 +416,22 @@ function randomizeComment() {
 }
 
 function updateClock() {
-  clock.textContent = new Intl.DateTimeFormat("ko-KR", {
+  const now = new Date();
+  clock.textContent = new Intl.DateTimeFormat("en-GB", {
     timeZone: "Asia/Seoul",
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
-    hour12: false,
-  }).format(new Date());
-  clock.dateTime = new Date().toISOString();
+    hourCycle: "h23",
+  }).format(now);
+  clock.dateTime = now.toISOString();
+  clockDate.textContent = new Intl.DateTimeFormat("vi-VN", {
+    timeZone: "Asia/Seoul",
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(now).replace(/^./u, (character) => character.toLocaleUpperCase("vi-VN"));
   if (naverState.date !== seoulDate()) {
     naverState = freshNaverState();
     saveNaver();
@@ -596,7 +605,7 @@ function toggleMusic() {
   musicToggle.classList.toggle("is-playing", musicOn);
   if (musicOn) {
     const playlist = musicTracks.join(",");
-    musicFrame.src = `https://www.youtube-nocookie.com/embed/${musicTracks[0]}?playlist=${playlist}&autoplay=1&loop=1&controls=1&enablejsapi=1`;
+    musicFrame.src = `https://www.youtube-nocookie.com/embed/${musicTracks[0]}?playlist=${playlist}&autoplay=1&loop=1&controls=1&playsinline=1`;
   } else {
     musicFrame.removeAttribute("src");
   }

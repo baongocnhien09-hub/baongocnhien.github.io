@@ -14,10 +14,9 @@
       <header class="topbar">
         <button class="brand" type="button" data-view="home" aria-label="EOMLAND, trang chủ">
           <span class="brand-mark" aria-hidden="true">✦</span>
-          <span>EOMLAND</span>
+          <span>EOMLAND - ALL FOR SEONGHYEON</span>
         </button>
         <div class="topbar-actions">
-          <time class="clock" id="seoul-clock" aria-label="Giờ Seoul">--:--:--</time>
           <button class="settings-button" id="open-settings" type="button" aria-label="Cài đặt" title="Cài đặt">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M12 8.25a3.75 3.75 0 1 0 0 7.5 3.75 3.75 0 0 0 0-7.5Z" />
@@ -26,6 +25,13 @@
           </button>
         </div>
       </header>
+
+      <section class="korea-clock" aria-label="Đồng hồ Hàn Quốc">
+        <p class="korea-clock-label">KOREA STANDARD TIME</p>
+        <time class="korea-clock-time" id="seoul-clock" aria-label="Giờ hiện tại tại Seoul">--:--</time>
+        <p class="korea-clock-date" id="seoul-date"></p>
+        <p class="korea-clock-zone">SEOUL · KST (UTC+9)</p>
+      </section>
 
       <main id="app-main" class="main-content" aria-live="polite"></main>
 
@@ -39,6 +45,7 @@
         id="music-frame"
         class="music-frame"
         title="Nhạc EOMLAND trên YouTube"
+        hidden
         allow="autoplay; encrypted-media; picture-in-picture"
         referrerpolicy="strict-origin-when-cross-origin"
       ></iframe>
