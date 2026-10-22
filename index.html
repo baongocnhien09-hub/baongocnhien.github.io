@@ -9,6 +9,7 @@
     <script src="app.js" defer></script>
   </head>
   <body>
+    <div class="acai-effects" id="acai-effects" aria-hidden="true"></div>
     <div class="site-shell">
       <header class="topbar">
         <button class="brand" type="button" data-view="home" aria-label="EOMLAND, trang chủ">
@@ -33,6 +34,20 @@
       </footer>
     </div>
 
+    <aside class="music-player" aria-label="Trình phát nhạc">
+      <iframe
+        id="music-frame"
+        class="music-frame"
+        title="Nhạc EOMLAND trên YouTube"
+        allow="autoplay; encrypted-media; picture-in-picture"
+        referrerpolicy="strict-origin-when-cross-origin"
+      ></iframe>
+      <button class="music-toggle" id="music-toggle" type="button" aria-pressed="false">
+        <span class="music-icon" aria-hidden="true">♫</span>
+        <span id="music-label">Music on</span>
+      </button>
+    </aside>
+
     <dialog class="settings-dialog" id="settings-dialog" aria-labelledby="settings-title">
       <form method="dialog">
         <div class="dialog-heading">
@@ -49,7 +64,7 @@
             <span aria-hidden="true">›</span>
           </button>
           <button class="setting-row" type="button" data-clear="google">
-            <span><strong>GOOGLE SEARCH</strong><small>Xóa từ khóa đang xem</small></span>
+            <span><strong>GOOGLE SEARCH</strong><small>Xóa lịch sử từ khóa đã copy</small></span>
             <span aria-hidden="true">›</span>
           </button>
           <button class="setting-row" type="button" data-clear="comments">

@@ -18,6 +18,61 @@
   box-sizing: border-box;
 }
 
+.acai-effects {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.acai-particle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  border-radius: 48% 52% 50% 50%;
+  background:
+    radial-gradient(ellipse at 36% 27%, rgba(255, 255, 255, 0.54) 0 7%, transparent 9%),
+    radial-gradient(ellipse at 34% 25%, #9b73b2 0, #704187 31%, #48235e 68%, #321744 100%);
+  box-shadow:
+    inset -1px -2px 3px rgba(25, 8, 36, 0.45),
+    0 1px 4px rgba(62, 25, 78, 0.2);
+  will-change: transform, opacity;
+}
+
+.acai-particle::before,
+.acai-particle::after {
+  position: absolute;
+  top: -2px;
+  width: 5px;
+  height: 3px;
+  border-radius: 100% 0 100% 0;
+  background: linear-gradient(135deg, #9dbd68, #527a3a 75%);
+  content: "";
+}
+
+.acai-particle::before {
+  left: 2px;
+  transform: rotate(16deg);
+}
+
+.acai-particle::after {
+  right: 1px;
+  transform: rotate(72deg) scale(0.8);
+}
+
+.acai-shine {
+  position: absolute;
+  top: 22%;
+  left: 23%;
+  width: 27%;
+  height: 18%;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.56);
+  filter: blur(0.35px);
+}
+
 body {
   min-width: 320px;
   min-height: 100vh;
@@ -33,6 +88,7 @@ button {
 }
 
 button:focus-visible,
+a.menu-card:focus-visible,
 textarea:focus-visible {
   outline: 3px solid rgba(130, 80, 149, 0.38);
   outline-offset: 3px;
@@ -169,6 +225,7 @@ p {
   box-shadow: 0 7px 25px rgba(65, 32, 78, 0.045);
   cursor: pointer;
   text-align: left;
+  text-decoration: none;
   transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
 }
 
@@ -368,6 +425,11 @@ p {
   opacity: 0.56;
 }
 
+.full-width-action {
+  width: 100%;
+  margin-top: 11px;
+}
+
 .checkbox-row {
   display: inline-flex;
   align-items: center;
@@ -402,6 +464,49 @@ p {
   color: #988ca0;
   font-size: 11px;
   text-align: center;
+}
+
+.music-player {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 5;
+}
+
+.music-toggle {
+  display: inline-flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 0 17px;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  border-radius: 999px;
+  background: linear-gradient(135deg, #825095, #59256e);
+  box-shadow: 0 8px 24px rgba(65, 32, 78, 0.25);
+  color: #fff;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 750;
+  transition: filter 150ms ease, transform 150ms ease;
+}
+
+.music-toggle:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.08);
+}
+
+.music-icon {
+  font-size: 18px;
+}
+
+.music-frame {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .settings-dialog {
@@ -501,6 +606,11 @@ p {
   .action-button {
     padding-inline: 8px;
     font-size: 11px;
+  }
+
+  .music-player {
+    right: 14px;
+    bottom: 14px;
   }
 }
 

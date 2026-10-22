@@ -8,6 +8,30 @@ const STORAGE_KEYS = {
 const main = document.querySelector("#app-main");
 const clock = document.querySelector("#seoul-clock");
 const settingsDialog = document.querySelector("#settings-dialog");
+const musicFrame = document.querySelector("#music-frame");
+const musicToggle = document.querySelector("#music-toggle");
+const musicLabel = document.querySelector("#music-label");
+const acaiEffects = document.querySelector("#acai-effects");
+const musicTracks = [
+  "g8NVwN0_mks",
+  "LlN8MPS7KQs",
+  "Z7-3_h0vxXA",
+  "cPAbx5kgCJo",
+  "6jZVsr7q-tE",
+  "ILRs2r6lcHY",
+  "eitDnP0_83k",
+  "YsKKuCUYUMU",
+  "vScUbKoE-qs",
+  "diLa-gpHRKc",
+  "md7dK5-qvHc",
+];
+const maxAcaiParticles = 40;
+const acaiParticles = [];
+let musicOn = false;
+let audioContext;
+let particleFrame = 0;
+let lastTrailPoint = null;
+let lastTrailSpawn = null;
 let data;
 let activeView = "home";
 let copyInProgress = false;
@@ -74,6 +98,114 @@ function randomIndex(length) {
   return Math.floor(Math.random() * length);
 }
 
+function randomBetween(min, max) {
+  return min + Math.random() * (max - min);
+}
+
+function playPop() {
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) {
+    return;
+  }
+  try {
+    audioContext = audioContext || new AudioContextClass();
+    if (audioContext.state === "suspended") {
+      audioContext.resume().catch((error) => console.warn("Unable to resume pop audio", error));
+    }
+    const now = audioContext.currentTime;
+    const oscillator = audioContext.createOscillator();
+    const volume = audioContext.createGain();
+    const pitch = randomBetween(540, 760);
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(pitch, now);
+    oscillator.frequency.exponentialRampToValueAtTime(pitch * 0.52, now + 0.075);
+    volume.gain.setValueAtTime(0.0001, now);
+    volume.gain.exponentialRampToValueAtTime(0.055, now + 0.008);
+    volume.gain.exponentialRampToValueAtTime(0.0001, now + 0.095);
+    oscillator.connect(volume);
+    volume.connect(audioContext.destination);
+    oscillator.start(now);
+    oscillator.stop(now + 0.1);
+  } catch (error) {
+    console.warn("Unable to play pop audio", error);
+  }
+}
+
+function animateAcaiParticles(now) {
+  particleFrame = 0;
+  for (let index = acaiParticles.length - 1; index >= 0; index -= 1) {
+    const particle = acaiParticles[index];
+    const elapsed = Math.min((now - particle.lastUpdated) / 1000, 0.04);
+    particle.lastUpdated = now;
+    particle.age = now - particle.createdAt;
+    if (particle.age >= particle.lifetime) {
+      particle.element.remove();
+      acaiParticles.splice(index, 1);
+      continue;
+    }
+    particle.vy += particle.gravity * elapsed;
+    particle.x += particle.vx * elapsed;
+    particle.y += particle.vy * elapsed;
+    if (!particle.bounced && particle.vy > 0 && particle.y >= particle.bounceY) {
+      particle.y = particle.bounceY;
+      particle.vy *= -0.32;
+      particle.bounced = true;
+    }
+    const progress = particle.age / particle.lifetime;
+    const sway = Math.sin(particle.age * particle.swaySpeed + particle.phase) * particle.sway;
+    particle.element.style.opacity = String(Math.min(1, progress * 5, (1 - progress) * 3));
+    particle.element.style.transform = `translate3d(${particle.x + sway}px, ${particle.y}px, 0) rotate(${particle.rotation + particle.spin * particle.age / 1000}deg) scale(${1 - progress * 0.18})`;
+  }
+  if (acaiParticles.length > 0) {
+    particleFrame = window.requestAnimationFrame(animateAcaiParticles);
+  }
+}
+
+function spawnAcai(x, y, options = {}) {
+  const now = performance.now();
+  const count = options.count ?? 1;
+  for (let index = 0; index < count; index += 1) {
+    if (acaiParticles.length >= maxAcaiParticles) {
+      const oldest = acaiParticles.shift();
+      oldest.element.remove();
+    }
+    const element = document.createElement("span");
+    element.className = "acai-particle";
+    element.innerHTML = '<span class="acai-shine"></span>';
+    const size = randomBetween(options.burst ? 8 : 7, options.burst ? 14 : 11);
+    element.style.width = `${size}px`;
+    element.style.height = `${size}px`;
+    acaiEffects.append(element);
+
+    const jitter = options.spread || 0;
+    const angle = randomBetween(0, Math.PI * 2);
+    const speed = options.burst ? randomBetween(75, 210) : randomBetween(20, 70);
+    const particle = {
+      element,
+      x: x + randomBetween(-jitter, jitter),
+      y: y + randomBetween(-jitter, jitter),
+      vx: Math.cos(angle) * speed + (options.velocityX || 0),
+      vy: Math.sin(angle) * speed - (options.burst ? randomBetween(35, 110) : 0) + (options.velocityY || 0),
+      gravity: options.burst ? randomBetween(230, 390) : randomBetween(-22, 35),
+      createdAt: now,
+      lastUpdated: now,
+      age: 0,
+      lifetime: randomBetween(options.burst ? 600 : 680, options.burst ? 1000 : 1250),
+      bounceY: y + randomBetween(22, 46),
+      bounced: false,
+      rotation: randomBetween(-180, 180),
+      spin: randomBetween(-300, 300),
+      sway: randomBetween(2, 8),
+      swaySpeed: randomBetween(0.004, 0.01),
+      phase: randomBetween(0, Math.PI * 2),
+    };
+    acaiParticles.push(particle);
+  }
+  if (!particleFrame) {
+    particleFrame = window.requestAnimationFrame(animateAcaiParticles);
+  }
+}
+
 function seoulDate() {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "Asia/Seoul",
@@ -137,10 +269,21 @@ let hideCopied;
 
 function loadGoogleState() {
   const saved = readStored(STORAGE_KEYS.google, null);
-  if (saved && Number.isInteger(saved.currentIndex) && saved.currentIndex >= 0 && saved.currentIndex < data.googleKeywords.length) {
-    return saved;
+  const copied = saved && Array.isArray(saved.copied)
+    ? [...new Set(saved.copied.filter((index) => Number.isInteger(index) && index >= 0 && index < data.googleKeywords.length))]
+    : [];
+  const candidates = data.googleKeywords.map((_, index) => index).filter((index) => !copied.includes(index));
+  const savedIndexIsValid = saved
+    && Number.isInteger(saved.currentIndex)
+    && saved.currentIndex >= 0
+    && saved.currentIndex < data.googleKeywords.length;
+  let currentIndex = savedIndexIsValid ? saved.currentIndex : randomIndex(data.googleKeywords.length);
+  if (candidates.length === 0) {
+    currentIndex = null;
+  } else if (!savedIndexIsValid || copied.includes(currentIndex)) {
+    currentIndex = candidates[randomIndex(candidates.length)];
   }
-  const state = { currentIndex: randomIndex(data.googleKeywords.length) };
+  const state = { copied, currentIndex };
   writeStored(STORAGE_KEYS.google, state);
   return state;
 }
@@ -217,14 +360,23 @@ function randomizeNaver() {
 }
 
 function advanceGoogle() {
-  const current = data.googleKeywords[googleState.currentIndex];
-  const options = data.googleKeywords.filter((keyword) => keyword !== current);
-  const next = options[randomIndex(options.length)];
-  googleState.currentIndex = data.googleKeywords.indexOf(next);
+  const options = data.googleKeywords.map((_, index) => index)
+    .filter((index) => !googleState.copied.includes(index) && index !== googleState.currentIndex);
+  if (options.length === 0 && googleState.currentIndex !== null
+    && !googleState.copied.includes(googleState.currentIndex)) {
+    options.push(googleState.currentIndex);
+  }
+  googleState.currentIndex = options.length > 0 ? options[randomIndex(options.length)] : null;
   saveGoogle();
 }
 
 function randomizeGoogle() {
+  if (googleState.currentIndex === null) {
+    copyMessage = "Bạn đã copy hết 50 từ khóa. Xóa lịch sử trong Cài đặt để bắt đầu lại.";
+    copyMessageKind = "";
+    render();
+    return;
+  }
   advanceGoogle();
   copyMessage = "";
   manualCopyText = "";
@@ -290,8 +442,12 @@ function renderHome() {
         <p>Từ khóa và bình luận được lưu riêng trên thiết bị của bạn.</p>
       </div>
       <nav class="menu-list" aria-label="Các công cụ">
+        <a class="menu-card" href="https://docs.google.com/document/d/1tkfTdS3wmofCjxJrUeCC8msttzdh2ftWXud4jnJY8Go/edit?tab=t.1ybrojudcvru" target="_blank" rel="noopener noreferrer">
+          <span class="menu-card-copy"><strong>TỔNG HỢP SEARCH GUIDE</strong><small>Hướng dẫn tìm kiếm hằng ngày</small></span>
+          <span class="menu-arrow" aria-hidden="true">↗</span>
+        </a>
         <button class="menu-card" type="button" data-view="naver">
-          <span class="menu-card-copy"><strong>NAVER SEARCH · 한국어</strong><small>Từ khóa theo từng set</small></span>
+          <span class="menu-card-copy"><strong>NAVER SEARCH</strong><small>Từ khóa theo từng set</small></span>
           <span class="menu-arrow" aria-hidden="true">›</span>
         </button>
         <button class="menu-card" type="button" data-view="comments">
@@ -310,7 +466,7 @@ function renderNaver() {
   return `
     <section class="view-screen">
       <button class="back-button" type="button" data-view="home">← <span>Trang chủ</span></button>
-      <div class="view-heading"><p class="eyebrow">7 BỘ TỪ KHÓA</p><h1>NAVER SEARCH · 한국어</h1></div>
+      <div class="view-heading"><p class="eyebrow">7 BỘ TỪ KHÓA</p><h1>NAVER SEARCH</h1></div>
       <nav class="menu-list set-list" aria-label="Chọn bộ từ khóa Naver">
         ${data.naverSets.map((set) => `
           <button class="menu-card" type="button" data-naver-set="${set.id}">
@@ -328,7 +484,7 @@ function renderNaverSet() {
   return `
     <section class="view-screen">
       <button class="back-button" type="button" data-view="naver">← <span>Danh sách set</span></button>
-      <div class="view-heading"><p class="eyebrow">TỪ KHÓA NAVER</p><h1>SET ${set.id}</h1></div>
+      <div class="view-heading"><p class="eyebrow">TỪ KHÓA NAVER SEARCH</p><h1>SET ${set.id}</h1></div>
       <article class="keyword-panel">
         <p class="set-name">Set ${set.id} · ${escapeHtml(set.title)}</p>
         <p class="keyword-text" lang="ko">${escapeHtml(keyword)}</p>
@@ -337,25 +493,32 @@ function renderNaverSet() {
       </article>
       ${renderManualCopy()}
       <div class="button-row">
-        <button class="action-button" type="button" data-copy="naver" ${copyInProgress ? "disabled" : ""}>COPY KEY</button>
+        <button class="action-button" type="button" data-view="comments">MỞ NAVER COMMENTS</button>
         <button class="action-button" type="button" data-action="random-naver" ${copyInProgress ? "disabled" : ""}>ĐỔI TỪ KHÓA</button>
       </div>
+      <button class="action-button full-width-action" type="button" data-copy="naver" ${copyInProgress ? "disabled" : ""}>COPY KEY</button>
     </section>`;
 }
 
 function renderGoogle() {
+  const currentKeyword = googleState.currentIndex === null
+    ? null
+    : data.googleKeywords[googleState.currentIndex];
   return `
     <section class="view-screen">
       <button class="back-button" type="button" data-view="home">← <span>Trang chủ</span></button>
       <div class="view-heading"><p class="eyebrow">50 TỪ KHÓA</p><h1>GOOGLE SEARCH</h1></div>
       <article class="keyword-panel">
-        <p class="keyword-text">${escapeHtml(data.googleKeywords[googleState.currentIndex])}</p>
+        ${currentKeyword === null
+          ? '<div class="empty-comments">Bạn đã copy hết 50 từ khóa.<br />Xóa lịch sử Google trong Cài đặt để bắt đầu lại.</div>'
+          : `<p class="keyword-text">${escapeHtml(currentKeyword)}</p>`}
+        <p class="counter-line">Đã copy ${googleState.copied.length} · Còn lại ${data.googleKeywords.length - googleState.copied.length}</p>
         ${renderCopyStatus()}
       </article>
       ${renderManualCopy()}
       <div class="button-row">
-        <button class="action-button" type="button" data-copy="google" ${copyInProgress ? "disabled" : ""}>COPY KEY</button>
-        <button class="action-button" type="button" data-action="random-google" ${copyInProgress ? "disabled" : ""}>TỪ KHÓA TIẾP</button>
+        <button class="action-button" type="button" data-copy="google" ${copyInProgress || currentKeyword === null ? "disabled" : ""}>COPY KEY</button>
+        <button class="action-button" type="button" data-action="random-google" ${copyInProgress || currentKeyword === null ? "disabled" : ""}>TỪ KHÓA TIẾP</button>
       </div>
     </section>`;
 }
@@ -363,6 +526,9 @@ function renderGoogle() {
 function renderComments() {
   const remaining = data.comments.length - commentsState.copied.length;
   const comment = commentsState.currentIndex === null ? null : data.comments[commentsState.currentIndex];
+  const backToSelectedSet = selectedNaverSetId !== null
+    ? `<button class="action-button full-width-action" type="button" data-naver-set="${selectedNaverSetId}">QUAY LẠI SET ${selectedNaverSetId}</button>`
+    : "";
   return `
     <section class="view-screen">
       <button class="back-button" type="button" data-view="home">← <span>Trang chủ</span></button>
@@ -377,9 +543,14 @@ function renderComments() {
       </article>
       ${renderManualCopy()}
       <div class="button-row">
-        <button class="action-button" type="button" data-copy="comment" ${copyInProgress || !comment ? "disabled" : ""}>COPY COMMENT</button>
+        ${backToSelectedSet
+          ? `<button class="action-button" type="button" data-naver-set="${selectedNaverSetId}">QUAY LẠI SET ${selectedNaverSetId}</button>`
+          : `<button class="action-button" type="button" data-copy="comment" ${copyInProgress || !comment ? "disabled" : ""}>COPY COMMENT</button>`}
         <button class="action-button" type="button" data-action="random-comment" ${copyInProgress ? "disabled" : ""}>CÂU TIẾP THEO</button>
       </div>
+      ${backToSelectedSet
+        ? `<button class="action-button full-width-action" type="button" data-copy="comment" ${copyInProgress || !comment ? "disabled" : ""}>COPY COMMENT</button>`
+        : ""}
     </section>`;
 }
 
@@ -415,6 +586,19 @@ function render() {
     message.setAttribute("role", "status");
     message.textContent = toastMessage;
     main.prepend(message);
+  }
+}
+
+function toggleMusic() {
+  musicOn = !musicOn;
+  musicToggle.setAttribute("aria-pressed", String(musicOn));
+  musicLabel.textContent = musicOn ? "Music off" : "Music on";
+  musicToggle.classList.toggle("is-playing", musicOn);
+  if (musicOn) {
+    const playlist = musicTracks.join(",");
+    musicFrame.src = `https://www.youtube-nocookie.com/embed/${musicTracks[0]}?playlist=${playlist}&autoplay=1&loop=1&controls=1&enablejsapi=1`;
+  } else {
+    musicFrame.removeAttribute("src");
   }
 }
 
@@ -482,11 +666,12 @@ async function copyCurrent(kind) {
     if (!await clipboardWrite) {
       throw new Error("Both clipboard methods were unavailable or denied");
     }
-    copyMessage = "Đã sao chép ✓";
+    copyMessage = "";
     copyMessageKind = "";
     if (kind === "naver") {
       advanceNaver(selectedNaverSetId, true);
     } else if (kind === "google") {
+      googleState.copied.push(googleState.currentIndex);
       advanceGoogle();
     } else {
       if (!commentsState.copied.includes(commentsState.currentIndex)) {
@@ -526,7 +711,7 @@ function setView(view) {
 function clearHistory(kind) {
   const confirmation = {
     naver: "Xóa bộ đếm và tiến độ Naver hôm nay? Thao tác này không ảnh hưởng đến lịch sử bình luận.",
-    google: "Xóa từ khóa Google đang xem?",
+    google: "Xóa lịch sử từ khóa Google đã copy và bắt đầu lại?",
     comments: "Xóa danh sách các mẫu bình luận đã copy? Bộ đếm Naver sẽ được giữ nguyên.",
   };
   if (!window.confirm(confirmation[kind])) {
@@ -536,7 +721,7 @@ function clearHistory(kind) {
     naverState = freshNaverState();
     saveNaver();
   } else if (kind === "google") {
-    googleState = { currentIndex: randomIndex(data.googleKeywords.length) };
+    googleState = { copied: [], currentIndex: randomIndex(data.googleKeywords.length) };
     saveGoogle();
   } else {
     commentsState = { copied: [], currentIndex: randomIndex(data.comments.length) };
@@ -613,6 +798,7 @@ main.addEventListener("change", (event) => {
 });
 
 document.querySelector("#open-settings").addEventListener("click", () => settingsDialog.showModal());
+musicToggle.addEventListener("click", toggleMusic);
 settingsDialog.addEventListener("click", (event) => {
   const button = event.target.closest("[data-clear]");
   if (button) {
@@ -622,3 +808,50 @@ settingsDialog.addEventListener("click", (event) => {
 document.querySelector(".brand").addEventListener("click", () => setView("home"));
 
 initialize();
+
+document.addEventListener("pointermove", (event) => {
+  if (event.pointerType !== "mouse" && event.pointerType !== "touch") {
+    return;
+  }
+  const point = { x: event.clientX, y: event.clientY, time: event.timeStamp };
+  if (lastTrailPoint) {
+    const dx = point.x - lastTrailPoint.x;
+    const dy = point.y - lastTrailPoint.y;
+    const distance = Math.hypot(dx, dy);
+    const elapsed = Math.max(1, point.time - lastTrailPoint.time);
+    const speed = distance / elapsed;
+    const threshold = Math.max(16, 38 - speed * 12);
+    const trailDistance = lastTrailSpawn
+      ? Math.hypot(point.x - lastTrailSpawn.x, point.y - lastTrailSpawn.y)
+      : distance;
+    if (trailDistance >= threshold) {
+      const count = speed > 1.15 ? 2 : 1;
+      spawnAcai(point.x, point.y, {
+        count,
+        spread: Math.min(22, 4 + speed * 8),
+        velocityX: dx / elapsed * 10,
+        velocityY: dy / elapsed * 10,
+      });
+      lastTrailSpawn = point;
+    }
+  }
+  lastTrailPoint = point;
+});
+
+document.addEventListener("pointerleave", () => {
+  lastTrailPoint = null;
+  lastTrailSpawn = null;
+});
+
+document.addEventListener("click", (event) => {
+  const target = event.target.closest("button:not(:disabled), a");
+  if (!target) {
+    return;
+  }
+  playPop();
+  spawnAcai(event.clientX, event.clientY, {
+    count: Math.floor(randomBetween(5, 10)),
+    burst: true,
+    spread: 3,
+  });
+});
