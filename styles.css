@@ -322,6 +322,10 @@ p {
   box-shadow: 0 8px 28px rgba(65, 32, 78, 0.055);
 }
 
+.comment-panel {
+  padding: 18px 20px;
+}
+
 .set-name {
   min-height: 21px;
   margin-bottom: 19px;
@@ -345,9 +349,7 @@ p {
 }
 
 .comment-text {
-  min-height: 184px;
-  display: flex;
-  align-items: center;
+  min-height: 0;
   margin: 0;
   color: #30213b;
   font-size: 20px;
@@ -358,7 +360,7 @@ p {
 }
 
 .comment-hashtags {
-  margin: 14px 0 0;
+  margin: 10px 0 0;
   color: var(--purple-light);
   font-size: 12px;
   font-weight: 650;
@@ -367,8 +369,8 @@ p {
 }
 
 .translation {
-  margin: 17px 0 0;
-  padding-top: 15px;
+  margin: 12px 0 0;
+  padding-top: 11px;
   border-top: 1px solid #f0e8f3;
   color: var(--muted);
   font-size: 13px;
@@ -386,6 +388,7 @@ p {
 .comment-stats {
   display: flex;
   justify-content: space-between;
+  margin-top: 10px;
   color: var(--muted);
   font-weight: 500;
 }
