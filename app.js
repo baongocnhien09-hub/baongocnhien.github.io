@@ -548,11 +548,11 @@ function renderNaverSet() {
         ${renderCopyStatus()}
       </article>
       ${renderManualCopy()}
+      <button class="action-button full-width-action" type="button" data-copy="naver" ${copyInProgress ? "disabled" : ""}>COPY KEY</button>
       <div class="button-row">
         <button class="action-button" type="button" data-view="comments">MỞ NAVER COMMENTS</button>
         <button class="action-button" type="button" data-action="random-naver" ${copyInProgress ? "disabled" : ""}>ĐỔI TỪ KHÓA</button>
       </div>
-      <button class="action-button full-width-action" type="button" data-copy="naver" ${copyInProgress ? "disabled" : ""}>COPY KEY</button>
     </section>`;
 }
 
@@ -598,15 +598,13 @@ function renderComments() {
         ${renderCopyStatus()}
       </article>
       ${renderManualCopy()}
-      <div class="button-row">
+      <button class="action-button full-width-action" type="button" data-copy="comment" ${copyInProgress || !comment ? "disabled" : ""}>COPY COMMENT</button>
+      <div class="button-row${backToSelectedSet ? "" : " single-action-row"}">
         ${backToSelectedSet
           ? `<button class="action-button" type="button" data-naver-set="${selectedNaverSetId}">QUAY LẠI SET ${selectedNaverSetId}</button>`
-          : `<button class="action-button" type="button" data-copy="comment" ${copyInProgress || !comment ? "disabled" : ""}>COPY COMMENT</button>`}
+          : ""}
         <button class="action-button" type="button" data-action="random-comment" ${copyInProgress ? "disabled" : ""}>CÂU TIẾP THEO</button>
       </div>
-      ${backToSelectedSet
-        ? `<button class="action-button full-width-action" type="button" data-copy="comment" ${copyInProgress || !comment ? "disabled" : ""}>COPY COMMENT</button>`
-        : ""}
     </section>`;
 }
 

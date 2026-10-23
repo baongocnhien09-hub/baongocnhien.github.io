@@ -429,6 +429,10 @@ p {
   margin-top: 15px;
 }
 
+.button-row.single-action-row {
+  grid-template-columns: 1fr;
+}
+
 .action-button {
   min-height: 52px;
   padding: 12px 14px;
