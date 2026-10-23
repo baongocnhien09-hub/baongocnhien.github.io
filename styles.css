@@ -326,6 +326,10 @@ p {
   padding: 14px 18px;
 }
 
+.keyword-panel {
+  padding: 16px 18px;
+}
+
 .set-name {
   min-height: 21px;
   margin-bottom: 19px;
@@ -333,6 +337,11 @@ p {
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.02em;
+}
+
+.keyword-panel .set-name {
+  min-height: 0;
+  margin-bottom: 8px;
 }
 
 .keyword-text {
@@ -348,6 +357,18 @@ p {
   text-align: center;
   overflow-wrap: anywhere;
   word-break: keep-all;
+}
+
+.keyword-panel .keyword-text {
+  min-height: 0;
+}
+
+.keyword-panel .counter-line {
+  margin-top: 10px;
+}
+
+.keyword-panel .copy-status:empty {
+  display: none;
 }
 
 .comment-text {
