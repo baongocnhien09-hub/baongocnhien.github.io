@@ -1,7 +1,7 @@
 const STORAGE_KEYS = {
   naver: "eomland.search.naver.v1",
   google: "eomland.search.google.v1",
-  comments: "eomland.comments.v1",
+  comments: "eomland.comments.v2",
   hideCopied: "eomland.comments.hideCopied.v1",
 };
 
@@ -36,6 +36,9 @@ let lastTrailSpawn = null;
 let data;
 let activeView = "home";
 let copyInProgress = false;
+let commentSetPickerOpen = false;
+let commentPickerOpenedByHover = false;
+let selectedCommentSetId = null;
 let copyMessage = "";
 let copyMessageKind = "";
 let manualCopyText = "";
@@ -296,7 +299,6 @@ let naverState;
 let selectedNaverSetId = null;
 let googleState;
 let commentsState;
-let hideCopied;
 
 function loadGoogleState() {
   const saved = readStored(STORAGE_KEYS.google, null);
@@ -321,24 +323,33 @@ function loadGoogleState() {
 
 function loadCommentsState() {
   const saved = readStored(STORAGE_KEYS.comments, null);
-  const copied = saved && Array.isArray(saved.copied)
-    ? [...new Set(saved.copied.filter((index) => Number.isInteger(index) && index >= 0 && index < data.comments.length))]
-    : [];
-  const candidates = data.comments.map((_, index) => index).filter((index) => !copied.includes(index));
-  const savedIndexIsValid = saved
-    && Number.isInteger(saved.currentIndex)
-    && saved.currentIndex >= 0
-    && saved.currentIndex < data.comments.length;
-  let currentIndex = savedIndexIsValid ? saved.currentIndex : randomIndex(data.comments.length);
-  if (hideCopied && copied.length === data.comments.length) {
-    currentIndex = null;
-  } else if (hideCopied && (!savedIndexIsValid || copied.includes(currentIndex))) {
-    currentIndex = candidates[randomIndex(candidates.length)];
-  }
-  const state = {
-    copied,
-    currentIndex,
-  };
+  const savedSets = saved && saved.sets && typeof saved.sets === "object" ? saved.sets : {};
+  const defaultHideCopied = readStored(STORAGE_KEYS.hideCopied, true) !== false;
+  const sets = Object.fromEntries(data.commentSets.map((set) => {
+    const savedSet = savedSets[set.id];
+    const copied = savedSet && Array.isArray(savedSet.copied)
+      ? [...new Set(savedSet.copied.filter((index) => Number.isInteger(index)
+        && index >= 0 && index < set.comments.length))]
+      : [];
+    const hideSetCopied = savedSet && typeof savedSet.hideCopied === "boolean"
+      ? savedSet.hideCopied
+      : defaultHideCopied;
+    const allIndexes = set.comments.map((_, index) => index);
+    const remaining = allIndexes.filter((index) => !copied.includes(index));
+    const options = hideSetCopied ? remaining : allIndexes;
+    const savedIndexIsValid = savedSet
+      && Number.isInteger(savedSet.currentIndex)
+      && savedSet.currentIndex >= 0
+      && savedSet.currentIndex < set.comments.length;
+    let currentIndex = savedIndexIsValid ? savedSet.currentIndex : null;
+    if (options.length === 0) {
+      currentIndex = null;
+    } else if (!savedIndexIsValid || (hideSetCopied && copied.includes(currentIndex))) {
+      currentIndex = options[randomIndex(options.length)];
+    }
+    return [set.id, { copied, currentIndex, hideCopied: hideSetCopied }];
+  }));
+  const state = { sets };
   writeStored(STORAGE_KEYS.comments, state);
   return state;
 }
@@ -357,6 +368,76 @@ function saveComments() {
 
 function currentNaverSet() {
   return data.naverSets.find((set) => set.id === selectedNaverSetId) || data.naverSets[0];
+}
+
+function currentCommentSet() {
+  return data.commentSets.find((set) => set.id === selectedCommentSetId) || null;
+}
+
+function currentCommentSetState() {
+  return selectedCommentSetId === null ? null : commentsState.sets[selectedCommentSetId];
+}
+
+function updateCommentSetPicker() {
+  const trigger = main.querySelector(".comment-picker-trigger");
+  const picker = main.querySelector("#comment-set-picker");
+  if (!trigger || !picker) {
+    return;
+  }
+  trigger.setAttribute("aria-expanded", String(commentSetPickerOpen));
+  picker.hidden = !commentSetPickerOpen;
+  if (!commentSetPickerOpen) {
+    return;
+  }
+
+  const rect = trigger.getBoundingClientRect();
+  const width = Math.min(280, window.innerWidth - 24);
+  const height = Math.min(360, window.innerHeight - 24);
+  const left = Math.max(12, Math.min(rect.left, window.innerWidth - width - 12));
+  picker.style.width = `${width}px`;
+  picker.style.maxHeight = `${height}px`;
+  picker.style.left = `${left}px`;
+  const pickerHeight = picker.getBoundingClientRect().height;
+  let top;
+  if (rect.bottom + pickerHeight <= window.innerHeight - 12) {
+    top = rect.bottom;
+  } else if (rect.top - pickerHeight >= 12) {
+    top = rect.top - pickerHeight;
+  } else {
+    top = Math.max(12, Math.min(rect.bottom, window.innerHeight - pickerHeight - 12));
+  }
+  picker.style.top = `${top}px`;
+}
+
+function openCommentSetPicker() {
+  commentSetPickerOpen = true;
+  commentPickerOpenedByHover = false;
+  copyMessage = "";
+  manualCopyText = "";
+  render();
+}
+
+function closeCommentSetPicker(restoreFocus = false) {
+  commentSetPickerOpen = false;
+  commentPickerOpenedByHover = false;
+  updateCommentSetPicker();
+  if (restoreFocus) {
+    main.querySelector(".comment-picker-trigger")?.focus();
+  }
+}
+
+function selectCommentSet(setId) {
+  if (!data.commentSets.some((set) => set.id === setId)) {
+    return;
+  }
+  selectedCommentSetId = setId;
+  commentSetPickerOpen = false;
+  commentPickerOpenedByHover = false;
+  activeView = "comments";
+  copyMessage = "";
+  copyMessageKind = "";
+  manualCopyText = "";
+  render();
 }
 
 function naverKeywordCount(set) {
@@ -431,30 +512,34 @@ function randomizeGoogle() {
   render();
 }
 
-function eligibleComments() {
-  return hideCopied
-    ? data.comments.map((_, index) => index).filter((index) => !commentsState.copied.includes(index))
-    : data.comments.map((_, index) => index);
+function eligibleComments(set, state) {
+  const indexes = set.comments.map((_, index) => index);
+  return state.hideCopied ? indexes.filter((index) => !state.copied.includes(index)) : indexes;
 }
 
-function chooseNextComment() {
-  const remaining = data.comments.map((_, index) => index)
-    .filter((index) => !commentsState.copied.includes(index));
+function chooseNextComment(set, state) {
+  const remaining = set.comments.map((_, index) => index)
+    .filter((index) => !state.copied.includes(index));
   if (remaining.length > 0) {
-    commentsState.currentIndex = remaining[randomIndex(remaining.length)];
+    state.currentIndex = remaining[randomIndex(remaining.length)];
   } else {
-    commentsState.currentIndex = null;
+    state.currentIndex = null;
   }
 }
 
 function randomizeComment() {
-  const options = eligibleComments();
+  const set = currentCommentSet();
+  const state = currentCommentSetState();
+  if (!set || !state) {
+    return;
+  }
+  const options = eligibleComments(set, state);
   if (options.length === 0) {
-    commentsState.currentIndex = null;
-    copyMessage = "Bạn đã copy hết 50 mẫu. Bỏ chọn “Ẩn câu đã copy” để xem lại.";
+    state.currentIndex = null;
+    copyMessage = "";
     copyMessageKind = "";
   } else {
-    commentsState.currentIndex = options[randomIndex(options.length)];
+    state.currentIndex = options[randomIndex(options.length)];
     copyMessage = "";
   }
   manualCopyText = "";
@@ -506,8 +591,8 @@ function renderHome() {
           <span class="menu-card-copy"><strong>NAVER SEARCH</strong><small>Từ khóa theo từng set</small></span>
           <span class="menu-arrow" aria-hidden="true">›</span>
         </button>
-        <button class="menu-card" type="button" data-view="comments">
-          <span class="menu-card-copy"><strong>NAVER COMMENTS</strong><small>Mẫu bình luận tiếng Hàn</small></span>
+        <button class="menu-card" type="button" data-view="comment-sets">
+          <span class="menu-card-copy"><strong>NAVER COMMENTS</strong><small>Chọn bộ bình luận tiếng Hàn</small></span>
           <span class="menu-arrow" aria-hidden="true">›</span>
         </button>
         <button class="menu-card" type="button" data-view="google">
@@ -533,6 +618,21 @@ function renderNaver() {
     </section>`;
 }
 
+function renderCommentSets() {
+  return `
+    <section class="view-screen">
+      <button class="back-button" type="button" data-view="home">← <span>Trang chủ</span></button>
+      <div class="view-heading"><p class="eyebrow">7 BỘ BÌNH LUẬN</p><h1>NAVER COMMENTS</h1></div>
+      <nav class="menu-list set-list" aria-label="Chọn bộ bình luận Naver">
+        ${data.commentSets.map((set) => `
+          <button class="menu-card" type="button" data-comment-set="${set.id}">
+            <span class="menu-card-copy"><strong>SET ${set.id}</strong><small>${escapeHtml(set.title)} · ${set.comments.length} bình luận</small></span>
+            <span class="menu-arrow" aria-hidden="true">›</span>
+          </button>`).join("")}
+      </nav>
+    </section>`;
+}
+
 function renderNaverSet() {
   const set = currentNaverSet();
   const state = naverState.sets[set.id];
@@ -550,7 +650,7 @@ function renderNaverSet() {
       ${renderManualCopy()}
       <button class="action-button full-width-action" type="button" data-copy="naver" ${copyInProgress ? "disabled" : ""}>COPY KEY</button>
       <div class="button-row">
-        <button class="action-button" type="button" data-view="comments">MỞ NAVER COMMENTS</button>
+        <button class="action-button comment-picker-trigger" type="button" data-action="toggle-comment-picker" aria-expanded="${commentSetPickerOpen}" aria-controls="comment-set-picker">MỞ NAVER COMMENTS</button>
         <button class="action-button" type="button" data-action="random-naver" ${copyInProgress ? "disabled" : ""}>ĐỔI TỪ KHÓA</button>
       </div>
     </section>`;
@@ -580,30 +680,39 @@ function renderGoogle() {
 }
 
 function renderComments() {
-  const remaining = data.comments.length - commentsState.copied.length;
-  const comment = commentsState.currentIndex === null ? null : data.comments[commentsState.currentIndex];
-  const backToSelectedSet = selectedNaverSetId !== null
-    ? `<button class="action-button full-width-action" type="button" data-naver-set="${selectedNaverSetId}">QUAY LẠI SET ${selectedNaverSetId}</button>`
-    : "";
+  const set = currentCommentSet();
+  const state = currentCommentSetState();
+  if (!set || !state) {
+    return '<section class="view-screen"><button class="back-button" type="button" data-view="home">← <span>Trang chủ</span></button><h1>NAVER COMMENTS</h1></section>';
+  }
+  const remaining = set.comments.length - state.copied.length;
+  const comment = state.currentIndex === null ? null : set.comments[state.currentIndex];
+  const isComplete = state.copied.length === set.comments.length;
+  const setNavigationButton = selectedNaverSetId !== null
+    ? `<button class="action-button" type="button" data-naver-set="${selectedNaverSetId}">QUAY LẠI SET ${selectedNaverSetId}</button>`
+    : '<button class="action-button" type="button" data-view="comment-sets">CHỌN SET</button>';
   return `
     <section class="view-screen">
       <button class="back-button" type="button" data-view="home">← <span>Trang chủ</span></button>
-      <div class="view-heading"><p class="eyebrow">50 MẪU BÌNH LUẬN</p><h1>NAVER COMMENTS</h1></div>
-      <label class="checkbox-row"><input id="hide-copied" type="checkbox" ${hideCopied ? "checked" : ""} /><span>Ẩn câu đã copy</span></label>
+      <div class="view-heading"><h1>NAVER COMMENTS</h1><p class="comment-set-title">${escapeHtml(set.title)}</p></div>
+      <label class="checkbox-row"><input id="hide-copied" type="checkbox" ${state.hideCopied ? "checked" : ""} /><span>Ẩn câu đã copy trong set này</span></label>
       <article class="comment-panel">
         ${comment
-          ? `<p class="comment-text" lang="ko">${escapeHtml(comment.ko)}</p><p class="comment-hashtags" lang="ko">${escapeHtml(data.commentHashtags)}</p><p class="translation">${escapeHtml(comment.vi)}</p>`
-          : `<div class="empty-comments">Bạn đã copy hết 50 mẫu.<br />Bỏ chọn “Ẩn câu đã copy” để xem lại.</div>`}
-        <div class="comment-stats"><span>Đã copy <strong>${commentsState.copied.length}</strong></span><span>Còn lại <strong>${remaining}</strong></span></div>
+          ? `<p class="comment-text" lang="ko">${escapeHtml(comment.ko)}</p><p class="translation">${escapeHtml(comment.vi)}</p><p class="comment-hashtags" lang="ko">${escapeHtml(comment.hashtags)}</p>`
+          : `<div class="empty-comments">${isComplete
+            ? `Bạn đã hoàn thành Set ${set.id}.${state.hideCopied ? '<br />Bỏ chọn “Ẩn câu đã copy” để xem lại.' : "<br />Nhấn RANDOM để xem lại câu đã copy."}`
+            : "Không còn câu nào để hiển thị trong set này."}</div>`}
+        <div class="comment-stats"><span>Đã copy <strong>${state.copied.length}</strong></span><span>Còn lại <strong>${remaining}</strong></span></div>
         ${renderCopyStatus()}
       </article>
       ${renderManualCopy()}
-      <button class="action-button full-width-action" type="button" data-copy="comment" ${copyInProgress || !comment ? "disabled" : ""}>COPY COMMENT</button>
-      <div class="button-row${backToSelectedSet ? "" : " single-action-row"}">
-        ${backToSelectedSet
-          ? `<button class="action-button" type="button" data-naver-set="${selectedNaverSetId}">QUAY LẠI SET ${selectedNaverSetId}</button>`
-          : ""}
-        <button class="action-button" type="button" data-action="random-comment" ${copyInProgress ? "disabled" : ""}>CÂU TIẾP THEO</button>
+      <div class="button-row comment-copy-actions">
+        <button class="action-button" type="button" data-copy="comment-plain" ${copyInProgress || !comment ? "disabled" : ""}>COPY KHÔNG HASHTAG</button>
+        <button class="action-button" type="button" data-copy="comment-with-hashtag" ${copyInProgress || !comment ? "disabled" : ""}>COPY CÓ HASHTAG</button>
+      </div>
+      <div class="button-row comment-navigation-actions">
+        ${setNavigationButton}
+        <button class="action-button" type="button" data-action="random-comment" ${copyInProgress ? "disabled" : ""}>RANDOM</button>
       </div>
     </section>`;
 }
@@ -629,11 +738,21 @@ function render() {
   const screens = {
     home: renderHome,
     naver: renderNaver,
+    "comment-sets": renderCommentSets,
     "naver-set": renderNaverSet,
     google: renderGoogle,
     comments: renderComments,
   };
   main.innerHTML = screens[activeView]();
+  main.insertAdjacentHTML("beforeend", `
+    <nav class="comment-set-picker" id="comment-set-picker" aria-label="Chọn bộ bình luận" ${commentSetPickerOpen ? "" : "hidden"}>
+      ${data.commentSets.map((set) => `
+        <button class="comment-set-option" type="button" data-comment-set="${set.id}" aria-label="Set ${set.id}: ${escapeHtml(set.title)}">
+          <span class="comment-set-number">SET ${set.id}</span>
+          <span>${escapeHtml(set.title)}</span>
+        </button>`).join("")}
+    </nav>`);
+  updateCommentSetPicker();
   if (toastMessage) {
     const message = document.createElement("p");
     message.className = "copy-status";
@@ -699,16 +818,25 @@ async function copyCurrent(kind) {
     return;
   }
   let text;
+  let commentSet;
+  let commentSetState;
+  let commentIndex;
   if (kind === "naver") {
     const set = currentNaverSet();
     text = set.keywords[naverState.sets[set.id].currentIndex];
   } else if (kind === "google") {
     text = data.googleKeywords[googleState.currentIndex];
-  } else {
-    if (commentsState.currentIndex === null) {
+  } else if (kind === "comment-plain" || kind === "comment-with-hashtag") {
+    commentSet = currentCommentSet();
+    commentSetState = currentCommentSetState();
+    if (!commentSet || !commentSetState || commentSetState.currentIndex === null) {
       return;
     }
-    text = `${data.comments[commentsState.currentIndex].ko}\n${data.commentHashtags}`;
+    commentIndex = commentSetState.currentIndex;
+    const comment = commentSet.comments[commentIndex];
+    text = kind === "comment-with-hashtag" ? `${comment.ko}\n${comment.hashtags}` : comment.ko;
+  } else {
+    return;
   }
 
   copyInProgress = true;
@@ -727,11 +855,11 @@ async function copyCurrent(kind) {
     } else if (kind === "google") {
       googleState.copied.push(googleState.currentIndex);
       advanceGoogle();
-    } else {
-      if (!commentsState.copied.includes(commentsState.currentIndex)) {
-        commentsState.copied.push(commentsState.currentIndex);
+    } else if (kind === "comment-with-hashtag") {
+      if (!commentSetState.copied.includes(commentIndex)) {
+        commentSetState.copied.push(commentIndex);
       }
-      chooseNextComment();
+      chooseNextComment(commentSet, commentSetState);
       saveComments();
     }
   } catch (error) {
@@ -751,8 +879,14 @@ async function copyCurrent(kind) {
 }
 
 function setView(view) {
-  if (["home", "naver", "naver-set", "comments", "google"].includes(view)) {
+  if (view === "comments") {
+    openCommentSetPicker();
+    return;
+  }
+  if (["home", "naver", "naver-set", "comment-sets", "google"].includes(view)) {
     activeView = view;
+    commentSetPickerOpen = false;
+    commentPickerOpenedByHover = false;
     if (view === "naver") {
       selectedNaverSetId = null;
     }
@@ -766,7 +900,7 @@ function clearHistory(kind) {
   const confirmation = {
     naver: "Xóa bộ đếm và tiến độ Naver hôm nay? Thao tác này không ảnh hưởng đến lịch sử bình luận.",
     google: "Xóa lịch sử từ khóa Google đã copy và bắt đầu lại?",
-    comments: "Xóa danh sách các mẫu bình luận đã copy? Bộ đếm Naver sẽ được giữ nguyên.",
+    comments: "Xóa lịch sử bình luận đã copy trong cả 7 set? Bộ đếm Naver sẽ được giữ nguyên.",
   };
   if (!window.confirm(confirmation[kind])) {
     return;
@@ -778,7 +912,16 @@ function clearHistory(kind) {
     googleState = { copied: [], currentIndex: randomIndex(data.googleKeywords.length) };
     saveGoogle();
   } else {
-    commentsState = { copied: [], currentIndex: randomIndex(data.comments.length) };
+    commentsState = {
+      sets: Object.fromEntries(data.commentSets.map((set) => [
+        set.id,
+        {
+          ...commentsState.sets[set.id],
+          copied: [],
+          currentIndex: randomIndex(set.comments.length),
+        },
+      ])),
+    };
     saveComments();
   }
   copyMessage = "";
@@ -795,12 +938,17 @@ async function initialize() {
       throw new Error(`Unable to load data.json: ${response.status}`);
     }
     data = await response.json();
-    if (data.naverSets.length !== 7 || data.googleKeywords.length !== 50 || data.comments.length !== 50) {
+    const validCommentSets = Array.isArray(data.commentSets)
+      && data.commentSets.length === 7
+      && data.commentSets.every((set, index) => set.id === index + 1
+        && Array.isArray(set.comments)
+        && set.comments.length === 20
+        && set.comments.every((comment) => comment.ko && comment.vi && comment.hashtags));
+    if (data.naverSets.length !== 7 || data.googleKeywords.length !== 50 || !validCommentSets) {
       throw new Error("Unexpected data counts in data.json");
     }
     naverState = loadNaverState();
     googleState = loadGoogleState();
-    hideCopied = readStored(STORAGE_KEYS.hideCopied, true) !== false;
     commentsState = loadCommentsState();
     updateClock();
     window.setInterval(updateClock, 1000);
@@ -816,7 +964,22 @@ main.addEventListener("click", (event) => {
   if (!button) {
     return;
   }
-  if (button.dataset.naverSet) {
+  if (button.dataset.commentSet) {
+    selectCommentSet(Number(button.dataset.commentSet));
+  } else if (button.dataset.action === "toggle-comment-picker") {
+    if (commentSetPickerOpen && commentPickerOpenedByHover && event.detail > 0) {
+      return;
+    }
+    const shouldOpen = !commentSetPickerOpen;
+    if (shouldOpen) {
+      openCommentSetPicker();
+      if (event.detail === 0) {
+        main.querySelector(".comment-set-option")?.focus();
+      }
+    } else {
+      closeCommentSetPicker();
+    }
+  } else if (button.dataset.naverSet) {
     selectedNaverSetId = Number(button.dataset.naverSet);
     activeView = "naver-set";
     copyMessage = "";
@@ -839,17 +1002,68 @@ main.addEventListener("change", (event) => {
   if (event.target.id !== "hide-copied") {
     return;
   }
-  hideCopied = event.target.checked;
-  writeStored(STORAGE_KEYS.hideCopied, hideCopied);
-  if (hideCopied && commentsState.currentIndex !== null && commentsState.copied.includes(commentsState.currentIndex)) {
-    chooseNextComment();
-  } else if (!hideCopied && commentsState.currentIndex === null) {
-    commentsState.currentIndex = randomIndex(data.comments.length);
+  const set = currentCommentSet();
+  const state = currentCommentSetState();
+  if (!set || !state) {
+    return;
+  }
+  state.hideCopied = event.target.checked;
+  if (state.hideCopied && state.currentIndex !== null && state.copied.includes(state.currentIndex)) {
+    chooseNextComment(set, state);
+  } else if (!state.hideCopied && state.currentIndex === null) {
+    state.currentIndex = randomIndex(set.comments.length);
   }
   copyMessage = "";
   saveComments();
   render();
 });
+
+main.addEventListener("pointerover", (event) => {
+  const trigger = event.target.closest(".comment-picker-trigger");
+  if (event.pointerType === "mouse" && trigger && !trigger.contains(event.relatedTarget)) {
+    commentSetPickerOpen = true;
+    commentPickerOpenedByHover = true;
+    updateCommentSetPicker();
+  }
+});
+
+main.addEventListener("pointerout", (event) => {
+  const region = event.target.closest(".comment-picker-trigger, .comment-set-picker");
+  const nextRegion = event.relatedTarget instanceof Element
+    ? event.relatedTarget.closest(".comment-picker-trigger, .comment-set-picker")
+    : null;
+  if (event.pointerType === "mouse" && region && !nextRegion) {
+    closeCommentSetPicker();
+  }
+});
+
+main.addEventListener("focusout", (event) => {
+  const region = event.target.closest(".comment-picker-trigger, .comment-set-picker");
+  const nextRegion = event.relatedTarget instanceof Element
+    ? event.relatedTarget.closest(".comment-picker-trigger, .comment-set-picker")
+    : null;
+  if (region && !nextRegion) {
+    closeCommentSetPicker();
+  }
+});
+
+main.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && commentSetPickerOpen) {
+    event.preventDefault();
+    closeCommentSetPicker(true);
+  }
+});
+
+document.addEventListener("click", (event) => {
+  const target = event.target;
+  const clickedPickerRegion = target.closest(".comment-picker-trigger, .comment-set-picker");
+  if (commentSetPickerOpen && !clickedPickerRegion) {
+    closeCommentSetPicker();
+  }
+});
+
+window.addEventListener("resize", updateCommentSetPicker);
+window.addEventListener("scroll", updateCommentSetPicker, true);
 
 document.querySelector("#open-settings").addEventListener("click", () => settingsDialog.showModal());
 musicToggle.addEventListener("click", toggleMusic);
