@@ -600,7 +600,7 @@ p {
   position: fixed;
   right: 20px;
   bottom: 20px;
-  z-index: 5;
+  z-index: 8;
 }
 
 .music-toggle {
@@ -628,6 +628,73 @@ p {
 
 .music-icon {
   font-size: 18px;
+}
+
+.music-playlist-panel {
+  position: absolute;
+  right: 0;
+  bottom: 100%;
+  display: grid;
+  width: min(240px, calc(100vw - 36px));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 17px;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 9px 26px rgba(65, 32, 78, 0.16);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(5px);
+  transition: opacity 150ms ease, transform 150ms ease, visibility 150ms ease;
+  visibility: hidden;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .music-player:hover .music-playlist-panel,
+  .music-player:focus-within .music-playlist-panel {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+    visibility: visible;
+  }
+}
+
+.music-player.is-open .music-playlist-panel {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+  visibility: visible;
+}
+
+.music-playlist-option {
+  display: grid;
+  min-width: 0;
+  min-height: 65px;
+  align-content: center;
+  justify-items: start;
+  gap: 4px;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--purple);
+  cursor: pointer;
+  text-align: left;
+}
+
+.music-playlist-option[aria-pressed="true"] {
+  border-color: var(--purple-light);
+  background: var(--soft-purple);
+}
+
+.music-playlist-option strong {
+  font-size: 13px;
+}
+
+.music-playlist-option small {
+  color: var(--muted);
+  font-size: 10px;
 }
 
 .music-frame {

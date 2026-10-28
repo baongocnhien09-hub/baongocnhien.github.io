@@ -12,6 +12,8 @@ const settingsDialog = document.querySelector("#settings-dialog");
 const musicFrame = document.querySelector("#music-frame");
 const musicToggle = document.querySelector("#music-toggle");
 const musicLabel = document.querySelector("#music-label");
+const musicPlayer = document.querySelector(".music-player");
+const musicPlaylistPanel = document.querySelector("#music-playlist-panel");
 const acaiEffects = document.querySelector("#acai-effects");
 const musicTracks = [
   "g8NVwN0_mks",
@@ -26,9 +28,12 @@ const musicTracks = [
   "diLa-gpHRKc",
   "md7dK5-qvHc",
 ];
+const soundcloudPlaylistUrl = "https://soundcloud.com/ph-ng-anh-33-544958085";
 const maxAcaiParticles = 40;
 const acaiParticles = [];
 let musicOn = false;
+let activeMusicPlaylist = null;
+let musicPanelOpen = false;
 let audioContext;
 let particleFrame = 0;
 let lastTrailPoint = null;
@@ -763,17 +768,91 @@ function render() {
 }
 
 function toggleMusic() {
-  musicOn = !musicOn;
-  musicToggle.setAttribute("aria-pressed", String(musicOn));
-  musicLabel.textContent = musicOn ? "Music off" : "Music on";
-  musicToggle.classList.toggle("is-playing", musicOn);
   if (musicOn) {
-    const playlist = musicTracks.join(",");
-    musicFrame.src = `https://www.youtube-nocookie.com/embed/${musicTracks[0]}?playlist=${playlist}&autoplay=1&loop=1&controls=1&playsinline=1`;
+    stopMusic();
   } else {
-    musicFrame.removeAttribute("src");
+    startMusicPlaylist(activeMusicPlaylist || "chill");
   }
 }
+
+function updateMusicControls() {
+  const canHover = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+  const panelVisible = musicPanelOpen || (
+    canHover && (musicPlayer.matches(":hover") || musicPlayer.contains(document.activeElement))
+  );
+  musicToggle.setAttribute("aria-pressed", String(musicOn));
+  musicToggle.setAttribute("aria-expanded", String(panelVisible));
+  musicLabel.textContent = musicOn ? "Music off" : "Music on";
+  musicToggle.classList.toggle("is-playing", musicOn);
+  musicPlayer.classList.toggle("is-open", musicPanelOpen);
+  musicPlaylistPanel.querySelectorAll("[data-playlist]").forEach((button) => {
+    button.setAttribute("aria-pressed", String(button.dataset.playlist === activeMusicPlaylist && musicOn));
+  });
+}
+
+function startMusicPlaylist(playlistName) {
+  activeMusicPlaylist = playlistName;
+  musicOn = true;
+  if (playlistName === "pho") {
+    const soundcloudUrl = new URL("https://w.soundcloud.com/player/");
+    soundcloudUrl.searchParams.set("url", soundcloudPlaylistUrl);
+    soundcloudUrl.searchParams.set("auto_play", "true");
+    soundcloudUrl.searchParams.set("hide_related", "true");
+    soundcloudUrl.searchParams.set("show_comments", "false");
+    soundcloudUrl.searchParams.set("show_reposts", "false");
+    soundcloudUrl.searchParams.set("show_teaser", "false");
+    soundcloudUrl.searchParams.set("visual", "false");
+    musicFrame.title = "Danh sách nhạc Phố trên SoundCloud";
+    musicFrame.src = soundcloudUrl.toString();
+  } else {
+    const playlist = musicTracks.join(",");
+    musicFrame.title = "Danh sách nhạc Chill trên YouTube";
+    musicFrame.src = `https://www.youtube-nocookie.com/embed/${musicTracks[0]}?playlist=${playlist}&autoplay=1&loop=1&controls=1&playsinline=1`;
+  }
+  updateMusicControls();
+}
+
+function stopMusic() {
+  musicOn = false;
+  musicFrame.removeAttribute("src");
+  updateMusicControls();
+}
+
+function handleMusicToggle() {
+  const isTouchLayout = window.matchMedia("(hover: none), (pointer: coarse)").matches;
+  if (isTouchLayout) {
+    musicPanelOpen = !musicPanelOpen;
+    updateMusicControls();
+    return;
+  }
+  toggleMusic();
+}
+
+musicToggle.addEventListener("click", handleMusicToggle);
+musicPlaylistPanel.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-playlist]");
+  if (!button) {
+    return;
+  }
+  const playlistName = button.dataset.playlist;
+  if (activeMusicPlaylist === playlistName && musicOn) {
+    stopMusic();
+  } else {
+    startMusicPlaylist(playlistName);
+  }
+  musicPanelOpen = false;
+  updateMusicControls();
+});
+document.addEventListener("click", (event) => {
+  if (!musicPlayer.contains(event.target) && musicPanelOpen) {
+    musicPanelOpen = false;
+    updateMusicControls();
+  }
+});
+musicPlayer.addEventListener("pointerenter", updateMusicControls);
+musicPlayer.addEventListener("pointerleave", updateMusicControls);
+musicPlayer.addEventListener("focusin", updateMusicControls);
+musicPlayer.addEventListener("focusout", updateMusicControls);
 
 function copyWithLegacyClipboard(text) {
   const field = document.createElement("textarea");
@@ -1066,7 +1145,6 @@ window.addEventListener("resize", updateCommentSetPicker);
 window.addEventListener("scroll", updateCommentSetPicker, true);
 
 document.querySelector("#open-settings").addEventListener("click", () => settingsDialog.showModal());
-musicToggle.addEventListener("click", toggleMusic);
 settingsDialog.addEventListener("click", (event) => {
   const button = event.target.closest("[data-clear]");
   if (button) {
