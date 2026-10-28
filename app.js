@@ -34,6 +34,7 @@ const acaiParticles = [];
 let musicOn = false;
 let activeMusicPlaylist = null;
 let musicPanelOpen = false;
+let ignoreMusicToggleHover = false;
 let audioContext;
 let particleFrame = 0;
 let lastTrailPoint = null;
@@ -776,12 +777,8 @@ function toggleMusic() {
 }
 
 function updateMusicControls() {
-  const canHover = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
-  const panelVisible = musicPanelOpen || (
-    canHover && (musicPlayer.matches(":hover") || musicPlayer.contains(document.activeElement))
-  );
   musicToggle.setAttribute("aria-pressed", String(musicOn));
-  musicToggle.setAttribute("aria-expanded", String(panelVisible));
+  musicToggle.setAttribute("aria-expanded", String(musicPanelOpen));
   musicLabel.textContent = musicOn ? "Music off" : "Music on";
   musicToggle.classList.toggle("is-playing", musicOn);
   musicPlayer.classList.toggle("is-open", musicPanelOpen);
@@ -840,7 +837,7 @@ musicPlaylistPanel.addEventListener("click", (event) => {
   } else {
     startMusicPlaylist(playlistName);
   }
-  musicPanelOpen = false;
+  musicPanelOpen = !window.matchMedia("(hover: none), (pointer: coarse)").matches;
   updateMusicControls();
 });
 document.addEventListener("click", (event) => {
@@ -849,10 +846,43 @@ document.addEventListener("click", (event) => {
     updateMusicControls();
   }
 });
-musicPlayer.addEventListener("pointerenter", updateMusicControls);
-musicPlayer.addEventListener("pointerleave", updateMusicControls);
-musicPlayer.addEventListener("focusin", updateMusicControls);
-musicPlayer.addEventListener("focusout", updateMusicControls);
+musicToggle.addEventListener("pointerenter", (event) => {
+  if (event.pointerType === "mouse" && !ignoreMusicToggleHover) {
+    musicPanelOpen = true;
+    updateMusicControls();
+  }
+});
+musicToggle.addEventListener("pointerleave", (event) => {
+  if (event.pointerType === "mouse" && !musicPlaylistPanel.contains(event.relatedTarget)) {
+    musicPanelOpen = false;
+    updateMusicControls();
+  }
+});
+musicPlaylistPanel.addEventListener("pointerleave", (event) => {
+  if (event.pointerType !== "mouse") {
+    return;
+  }
+  ignoreMusicToggleHover = event.relatedTarget === musicToggle;
+  musicPanelOpen = false;
+  updateMusicControls();
+});
+musicPlayer.addEventListener("pointerleave", (event) => {
+  if (event.pointerType === "mouse") {
+    ignoreMusicToggleHover = false;
+    musicPanelOpen = false;
+    updateMusicControls();
+  }
+});
+musicPlayer.addEventListener("focusin", () => {
+  musicPanelOpen = true;
+  updateMusicControls();
+});
+musicPlayer.addEventListener("focusout", (event) => {
+  if (!musicPlayer.contains(event.relatedTarget)) {
+    musicPanelOpen = false;
+    updateMusicControls();
+  }
+});
 
 function copyWithLegacyClipboard(text) {
   const field = document.createElement("textarea");
