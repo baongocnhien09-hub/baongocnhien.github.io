@@ -397,15 +397,16 @@ function updateCommentSetPicker() {
   }
 
   const rect = trigger.getBoundingClientRect();
-  const width = Math.min(280, window.innerWidth - 24);
+  const sideSpace = 12;
+  const availableRight = window.innerWidth - sideSpace - rect.right;
+  const availableLeft = rect.left - sideSpace;
+  const opensRight = availableRight >= Math.min(180, availableLeft) || availableLeft < 180;
+  const availableWidth = opensRight ? availableRight : availableLeft;
+  const width = Math.min(280, Math.max(0, availableWidth));
   const height = Math.min(360, window.innerHeight - 24);
-  const rightAlignedLeft = window.innerWidth - width - 12;
-  const left = rect.right + 8 + width <= window.innerWidth - 12
-    ? rect.right + 8
-    : rightAlignedLeft;
   picker.style.width = `${width}px`;
   picker.style.maxHeight = `${height}px`;
-  picker.style.left = `${left}px`;
+  picker.style.left = `${opensRight ? rect.right : rect.left - width}px`;
   const pickerHeight = picker.getBoundingClientRect().height;
   const centeredTop = rect.top + (rect.height - pickerHeight) / 2;
   const top = Math.max(12, Math.min(centeredTop, window.innerHeight - pickerHeight - 12));
