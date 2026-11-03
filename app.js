@@ -14,6 +14,8 @@ const dailySummaryDialog = document.querySelector("#daily-summary-dialog");
 const musicFrame = document.querySelector("#music-frame");
 const musicToggle = document.querySelector("#music-toggle");
 const musicLabel = document.querySelector("#music-label");
+const musicPlayer = document.querySelector(".music-player");
+const musicPlaylistPanel = document.querySelector("#music-playlist-panel");
 const acaiEffects = document.querySelector("#acai-effects");
 const musicTracks = [
   "g8NVwN0_mks",
@@ -28,9 +30,13 @@ const musicTracks = [
   "diLa-gpHRKc",
   "md7dK5-qvHc",
 ];
+const soundcloudPlaylistUrl = "https://soundcloud.com/ph-ng-anh-33-544958085/sets/thich-thi-nghe-thoi";
 const maxAcaiParticles = 40;
 const acaiParticles = [];
 let musicOn = false;
+let activeMusicPlaylist = null;
+let musicPanelOpen = false;
+let ignoreMusicToggleHover = false;
 let audioContext;
 let particleFrame = 0;
 let lastTrailPoint = null;
@@ -486,21 +492,19 @@ function updateCommentSetPicker() {
   }
 
   const rect = trigger.getBoundingClientRect();
-  const width = Math.min(280, window.innerWidth - 24);
+  const sideSpace = 12;
+  const availableRight = window.innerWidth - sideSpace - rect.right;
+  const availableLeft = rect.left - sideSpace;
+  const opensRight = availableRight >= Math.min(180, availableLeft) || availableLeft < 180;
+  const availableWidth = opensRight ? availableRight : availableLeft;
+  const width = Math.min(280, Math.max(0, availableWidth));
   const height = Math.min(360, window.innerHeight - 24);
-  const left = Math.max(12, Math.min(rect.left, window.innerWidth - width - 12));
   picker.style.width = `${width}px`;
   picker.style.maxHeight = `${height}px`;
-  picker.style.left = `${left}px`;
+  picker.style.left = `${opensRight ? rect.right : rect.left - width}px`;
   const pickerHeight = picker.getBoundingClientRect().height;
-  let top;
-  if (rect.bottom + pickerHeight <= window.innerHeight - 12) {
-    top = rect.bottom;
-  } else if (rect.top - pickerHeight >= 12) {
-    top = rect.top - pickerHeight;
-  } else {
-    top = Math.max(12, Math.min(rect.bottom, window.innerHeight - pickerHeight - 12));
-  }
+  const centeredTop = rect.top + (rect.height - pickerHeight) / 2;
+  const top = Math.max(12, Math.min(centeredTop, window.innerHeight - pickerHeight - 12));
   picker.style.top = `${top}px`;
 }
 
@@ -858,17 +862,120 @@ function render() {
 }
 
 function toggleMusic() {
-  musicOn = !musicOn;
-  musicToggle.setAttribute("aria-pressed", String(musicOn));
-  musicLabel.textContent = musicOn ? "Music off" : "Music on";
-  musicToggle.classList.toggle("is-playing", musicOn);
   if (musicOn) {
-    const playlist = musicTracks.join(",");
-    musicFrame.src = `https://www.youtube-nocookie.com/embed/${musicTracks[0]}?playlist=${playlist}&autoplay=1&loop=1&controls=1&playsinline=1`;
+    stopMusic();
   } else {
-    musicFrame.removeAttribute("src");
+    startMusicPlaylist(activeMusicPlaylist || "chill");
   }
 }
+
+function updateMusicControls() {
+  musicToggle.setAttribute("aria-pressed", String(musicOn));
+  musicToggle.setAttribute("aria-expanded", String(musicPanelOpen));
+  musicLabel.textContent = musicOn ? "Music off" : "Music on";
+  musicToggle.classList.toggle("is-playing", musicOn);
+  musicPlayer.classList.toggle("is-open", musicPanelOpen);
+  musicPlaylistPanel.querySelectorAll("[data-playlist]").forEach((button) => {
+    button.setAttribute("aria-pressed", String(button.dataset.playlist === activeMusicPlaylist && musicOn));
+  });
+}
+
+function startMusicPlaylist(playlistName) {
+  activeMusicPlaylist = playlistName;
+  musicOn = true;
+  if (playlistName === "pho") {
+    const soundcloudUrl = new URL("https://w.soundcloud.com/player/");
+    soundcloudUrl.searchParams.set("url", soundcloudPlaylistUrl);
+    soundcloudUrl.searchParams.set("auto_play", "true");
+    soundcloudUrl.searchParams.set("hide_related", "true");
+    soundcloudUrl.searchParams.set("show_comments", "false");
+    soundcloudUrl.searchParams.set("show_reposts", "false");
+    soundcloudUrl.searchParams.set("show_teaser", "false");
+    soundcloudUrl.searchParams.set("visual", "false");
+    musicFrame.title = "Danh sách nhạc Phố trên SoundCloud";
+    musicFrame.src = soundcloudUrl.toString();
+  } else {
+    const playlist = musicTracks.join(",");
+    musicFrame.title = "Danh sách nhạc Chill trên YouTube";
+    musicFrame.src = `https://www.youtube-nocookie.com/embed/${musicTracks[0]}?playlist=${playlist}&autoplay=1&loop=1&controls=1&playsinline=1`;
+  }
+  updateMusicControls();
+}
+
+function stopMusic() {
+  musicOn = false;
+  musicFrame.removeAttribute("src");
+  updateMusicControls();
+}
+
+function handleMusicToggle() {
+  const isTouchLayout = window.matchMedia("(hover: none), (pointer: coarse)").matches;
+  if (isTouchLayout) {
+    musicPanelOpen = !musicPanelOpen;
+    updateMusicControls();
+    return;
+  }
+  toggleMusic();
+}
+
+musicToggle.addEventListener("click", handleMusicToggle);
+musicPlaylistPanel.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-playlist]");
+  if (!button) {
+    return;
+  }
+  const playlistName = button.dataset.playlist;
+  if (activeMusicPlaylist === playlistName && musicOn) {
+    stopMusic();
+  } else {
+    startMusicPlaylist(playlistName);
+  }
+  musicPanelOpen = !window.matchMedia("(hover: none), (pointer: coarse)").matches;
+  updateMusicControls();
+});
+document.addEventListener("click", (event) => {
+  if (!musicPlayer.contains(event.target) && musicPanelOpen) {
+    musicPanelOpen = false;
+    updateMusicControls();
+  }
+});
+musicToggle.addEventListener("pointerenter", (event) => {
+  if (event.pointerType === "mouse" && !ignoreMusicToggleHover) {
+    musicPanelOpen = true;
+    updateMusicControls();
+  }
+});
+musicToggle.addEventListener("pointerleave", (event) => {
+  if (event.pointerType === "mouse" && !musicPlaylistPanel.contains(event.relatedTarget)) {
+    musicPanelOpen = false;
+    updateMusicControls();
+  }
+});
+musicPlaylistPanel.addEventListener("pointerleave", (event) => {
+  if (event.pointerType !== "mouse") {
+    return;
+  }
+  ignoreMusicToggleHover = event.relatedTarget === musicToggle;
+  musicPanelOpen = false;
+  updateMusicControls();
+});
+musicPlayer.addEventListener("pointerleave", (event) => {
+  if (event.pointerType === "mouse") {
+    ignoreMusicToggleHover = false;
+    musicPanelOpen = false;
+    updateMusicControls();
+  }
+});
+musicPlayer.addEventListener("focusin", () => {
+  musicPanelOpen = true;
+  updateMusicControls();
+});
+musicPlayer.addEventListener("focusout", (event) => {
+  if (!musicPlayer.contains(event.relatedTarget)) {
+    musicPanelOpen = false;
+    updateMusicControls();
+  }
+});
 
 function copyWithLegacyClipboard(text) {
   const field = document.createElement("textarea");
@@ -1167,7 +1274,6 @@ window.addEventListener("resize", updateCommentSetPicker);
 window.addEventListener("scroll", updateCommentSetPicker, true);
 
 document.querySelector("#open-settings").addEventListener("click", () => settingsDialog.showModal());
-musicToggle.addEventListener("click", toggleMusic);
 settingsDialog.addEventListener("click", (event) => {
   const button = event.target.closest("[data-clear]");
   if (button) {
