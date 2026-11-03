@@ -1,14 +1,16 @@
 const STORAGE_KEYS = {
   naver: "eomland.search.naver.v1",
-  google: "eomland.search.google.v1",
+  google: "eomland.search.google.v2",
   comments: "eomland.comments.v2",
   hideCopied: "eomland.comments.hideCopied.v1",
+  dailyActivity: "eomland.activity.daily.v1",
 };
 
 const main = document.querySelector("#app-main");
 const clock = document.querySelector("#seoul-clock");
 const clockDate = document.querySelector("#seoul-date");
 const settingsDialog = document.querySelector("#settings-dialog");
+const dailySummaryDialog = document.querySelector("#daily-summary-dialog");
 const musicFrame = document.querySelector("#music-frame");
 const musicToggle = document.querySelector("#music-toggle");
 const musicLabel = document.querySelector("#music-label");
@@ -221,6 +223,98 @@ function seoulDate() {
   return `${values.year}-${values.month}-${values.day}`;
 }
 
+function previousDate(date) {
+  const [year, month, day] = date.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day - 1)).toISOString().slice(0, 10);
+}
+
+function emptyDailyCounts() {
+  return {
+    naverSearch: 0,
+    commentHashtag: 0,
+    commentPlain: 0,
+    googleSearch: 0,
+  };
+}
+
+function loadDailyActivity() {
+  const saved = readStored(STORAGE_KEYS.dailyActivity, null);
+  const today = seoulDate();
+  const startedOn = saved && /^\d{4}-\d{2}-\d{2}$/.test(saved.startedOn)
+    ? saved.startedOn
+    : today;
+  const days = {};
+  if (saved && saved.days && typeof saved.days === "object") {
+    Object.entries(saved.days).forEach(([date, counts]) => {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !counts || typeof counts !== "object") {
+        return;
+      }
+      days[date] = Object.fromEntries(Object.entries(emptyDailyCounts()).map(([key]) => [
+        key,
+        Number.isSafeInteger(counts[key]) && counts[key] >= 0 ? counts[key] : 0,
+      ]));
+    });
+  }
+  days[today] = days[today] || emptyDailyCounts();
+  const state = {
+    startedOn,
+    lastShownDate: saved && /^\d{4}-\d{2}-\d{2}$/.test(saved.lastShownDate)
+      ? saved.lastShownDate
+      : null,
+    days,
+  };
+  writeStored(STORAGE_KEYS.dailyActivity, state);
+  return state;
+}
+
+function recordDailyCopy(kind) {
+  const date = seoulDate();
+  dailyActivity.days[date] = dailyActivity.days[date] || emptyDailyCounts();
+  const counter = {
+    naver: "naverSearch",
+    google: "googleSearch",
+    "comment-plain": "commentPlain",
+    "comment-with-hashtag": "commentHashtag",
+  }[kind];
+  if (!counter) {
+    return;
+  }
+  dailyActivity.days[date][counter] += 1;
+  writeStored(STORAGE_KEYS.dailyActivity, dailyActivity);
+}
+
+function maybeShowDailySummary() {
+  const summaryDate = previousDate(seoulDate());
+  if (summaryDate < dailyActivity.startedOn || dailyActivity.lastShownDate === summaryDate) {
+    return;
+  }
+  const saved = readStored(STORAGE_KEYS.dailyActivity, null);
+  if (saved && saved.lastShownDate === summaryDate) {
+    return;
+  }
+  const counts = dailyActivity.days[summaryDate] || emptyDailyCounts();
+  const commentTotal = counts.commentHashtag + counts.commentPlain;
+  const total = counts.naverSearch + commentTotal + counts.googleSearch;
+  const [year, month, day] = summaryDate.split("-");
+  const image = counts.naverSearch >= 15
+    ? "assets/daily-summary-happy.png"
+    : "assets/daily-summary-sad.png";
+  dailySummaryDialog.querySelector(".daily-summary-character").src = image;
+  dailySummaryDialog.querySelector(".daily-summary-character").alt = counts.naverSearch >= 15
+    ? "Nhân vật vui vẻ đội khăn"
+    : "Nhân vật mặc áo hồng, biểu cảm mếu";
+  dailySummaryDialog.querySelector(".daily-summary-date").textContent = `${day}/${month}/${year}`;
+  dailySummaryDialog.querySelector('[data-summary="naver"]').textContent = counts.naverSearch;
+  dailySummaryDialog.querySelector('[data-summary="comment-total"]').textContent = commentTotal;
+  dailySummaryDialog.querySelector('[data-summary="comment-hashtag"]').textContent = counts.commentHashtag;
+  dailySummaryDialog.querySelector('[data-summary="comment-plain"]').textContent = counts.commentPlain;
+  dailySummaryDialog.querySelector('[data-summary="google"]').textContent = counts.googleSearch;
+  dailySummaryDialog.querySelector('[data-summary="total"]').textContent = total;
+  dailyActivity.lastShownDate = summaryDate;
+  writeStored(STORAGE_KEYS.dailyActivity, dailyActivity);
+  dailySummaryDialog.showModal();
+}
+
 function freshNaverState() {
   const sets = Object.fromEntries(data.naverSets.map((set) => [
     set.id,
@@ -299,6 +393,7 @@ let naverState;
 let selectedNaverSetId = null;
 let googleState;
 let commentsState;
+let dailyActivity;
 
 function loadGoogleState() {
   const saved = readStored(STORAGE_KEYS.google, null);
@@ -501,7 +596,7 @@ function advanceGoogle() {
 
 function randomizeGoogle() {
   if (googleState.currentIndex === null) {
-    copyMessage = "Bạn đã copy hết 50 từ khóa. Xóa lịch sử trong Cài đặt để bắt đầu lại.";
+    copyMessage = `Bạn đã copy hết ${data.googleKeywords.length} nội dung. Xóa lịch sử X trong Cài đặt để bắt đầu lại.`;
     copyMessageKind = "";
     render();
     return;
@@ -596,7 +691,7 @@ function renderHome() {
           <span class="menu-arrow" aria-hidden="true">›</span>
         </button>
         <button class="menu-card" type="button" data-view="google">
-          <span class="menu-card-copy"><strong>GOOGLE SEARCH</strong><small>50 từ khóa tìm kiếm</small></span>
+          <span class="menu-card-copy"><strong>X</strong></span>
           <span class="menu-arrow" aria-hidden="true">›</span>
         </button>
       </nav>
@@ -663,18 +758,18 @@ function renderGoogle() {
   return `
     <section class="view-screen">
       <button class="back-button" type="button" data-view="home">← <span>Trang chủ</span></button>
-      <div class="view-heading"><p class="eyebrow">50 TỪ KHÓA</p><h1>GOOGLE SEARCH</h1></div>
+      <div class="view-heading"><p class="eyebrow">${data.googleKeywords.length} MẪU COPY</p><h1>X</h1></div>
       <article class="keyword-panel">
         ${currentKeyword === null
-          ? '<div class="empty-comments">Bạn đã copy hết 50 từ khóa.<br />Xóa lịch sử Google trong Cài đặt để bắt đầu lại.</div>'
-          : `<p class="keyword-text">${escapeHtml(currentKeyword)}</p>`}
+          ? `<div class="empty-comments">Bạn đã copy hết ${data.googleKeywords.length} nội dung.<br />Xóa lịch sử X trong Cài đặt để bắt đầu lại.</div>`
+          : `<p class="keyword-text google-content-text">${escapeHtml(currentKeyword)}</p>`}
         <p class="counter-line">Đã copy ${googleState.copied.length} · Còn lại ${data.googleKeywords.length - googleState.copied.length}</p>
         ${renderCopyStatus()}
       </article>
       ${renderManualCopy()}
       <div class="button-row">
-        <button class="action-button" type="button" data-copy="google" ${copyInProgress || currentKeyword === null ? "disabled" : ""}>COPY KEY</button>
-        <button class="action-button" type="button" data-action="random-google" ${copyInProgress || currentKeyword === null ? "disabled" : ""}>TỪ KHÓA TIẾP</button>
+        <button class="action-button" type="button" data-copy="google" ${copyInProgress || currentKeyword === null ? "disabled" : ""}>COPY</button>
+        <button class="action-button" type="button" data-action="random-google" ${copyInProgress || currentKeyword === null ? "disabled" : ""}>RANDOM</button>
       </div>
     </section>`;
 }
@@ -862,6 +957,7 @@ async function copyCurrent(kind) {
       chooseNextComment(commentSet, commentSetState);
       saveComments();
     }
+    recordDailyCopy(kind);
   } catch (error) {
     console.error("Unable to copy text to clipboard", error);
     copyMessage = "Không thể sao chép tự động. Hãy chọn nội dung bên dưới rồi nhấn Ctrl+C (⌘C trên Mac).";
@@ -899,7 +995,7 @@ function setView(view) {
 function clearHistory(kind) {
   const confirmation = {
     naver: "Xóa bộ đếm và tiến độ Naver hôm nay? Thao tác này không ảnh hưởng đến lịch sử bình luận.",
-    google: "Xóa lịch sử từ khóa Google đã copy và bắt đầu lại?",
+    google: "Xóa lịch sử nội dung X đã copy và bắt đầu lại?",
     comments: "Xóa lịch sử bình luận đã copy trong cả 7 set? Bộ đếm Naver sẽ được giữ nguyên.",
   };
   if (!window.confirm(confirmation[kind])) {
@@ -933,7 +1029,7 @@ function clearHistory(kind) {
 
 async function initialize() {
   try {
-    const response = await fetch("data.json");
+    const response = await fetch("data.json?v=20261103-1", { cache: "no-store" });
     if (!response.ok) {
       throw new Error(`Unable to load data.json: ${response.status}`);
     }
@@ -944,15 +1040,20 @@ async function initialize() {
         && Array.isArray(set.comments)
         && set.comments.length === 20
         && set.comments.every((comment) => comment.ko && comment.vi && comment.hashtags));
-    if (data.naverSets.length !== 7 || data.googleKeywords.length !== 50 || !validCommentSets) {
+    if (data.naverSets.length !== 7 || !Array.isArray(data.googleKeywords)
+      || data.googleKeywords.length === 0
+      || !data.googleKeywords.every((keyword) => typeof keyword === "string" && keyword.trim())
+      || !validCommentSets) {
       throw new Error("Unexpected data counts in data.json");
     }
     naverState = loadNaverState();
     googleState = loadGoogleState();
     commentsState = loadCommentsState();
+    dailyActivity = loadDailyActivity();
     updateClock();
     window.setInterval(updateClock, 1000);
     render();
+    maybeShowDailySummary();
   } catch (error) {
     console.error("Unable to initialize EOMLAND", error);
     main.innerHTML = '<section class="home-intro"><p class="eyebrow">EOMLAND</p><h1>Không thể tải dữ liệu</h1><p>Hãy làm mới trang để thử lại.</p></section>';
@@ -1071,6 +1172,11 @@ settingsDialog.addEventListener("click", (event) => {
   const button = event.target.closest("[data-clear]");
   if (button) {
     clearHistory(button.dataset.clear);
+  }
+});
+dailySummaryDialog.addEventListener("click", (event) => {
+  if (event.target === dailySummaryDialog || event.target.closest("[data-close-daily-summary]")) {
+    dailySummaryDialog.close();
   }
 });
 document.querySelector(".brand").addEventListener("click", () => setView("home"));

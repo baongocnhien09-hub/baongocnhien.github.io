@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#f9f5fb" />
     <title>EOMLAND — SEARCH &amp; COMMENTS</title>
-    <link rel="stylesheet" href="styles.css?v=20261028-14" />
-    <script src="app.js?v=20261028-14" defer></script>
+    <link rel="stylesheet" href="styles.css?v=20261103-3" />
+    <script src="app.js?v=20261103-3" defer></script>
   </head>
   <body>
     <div class="acai-effects" id="acai-effects" aria-hidden="true"></div>
@@ -71,7 +71,7 @@
             <span aria-hidden="true">›</span>
           </button>
           <button class="setting-row" type="button" data-clear="google">
-            <span><strong>GOOGLE SEARCH</strong><small>Xóa lịch sử từ khóa đã copy</small></span>
+            <span><strong>X</strong><small>Xóa lịch sử nội dung đã copy</small></span>
             <span aria-hidden="true">›</span>
           </button>
           <button class="setting-row" type="button" data-clear="comments">
@@ -80,6 +80,36 @@
           </button>
         </div>
       </form>
+    </dialog>
+
+    <dialog class="daily-summary-dialog" id="daily-summary-dialog" aria-labelledby="daily-summary-title">
+      <img class="daily-summary-character" src="assets/daily-summary-sad.png" alt="" />
+      <button class="daily-summary-close" type="button" aria-label="Đóng tổng kết" data-close-daily-summary>×</button>
+      <div class="daily-summary-content">
+        <p class="daily-summary-eyebrow">EOMLAND · HOẠT ĐỘNG CỦA BẠN</p>
+        <h2 id="daily-summary-title">TỔNG KẾT NGÀY <span class="daily-summary-date"></span></h2>
+        <div class="daily-summary-list">
+          <div class="daily-summary-row">
+            <span>NAVER SEARCH</span><strong><span data-summary="naver">0</span> lượt</strong>
+          </div>
+          <div class="daily-summary-row daily-summary-comments">
+            <span>NAVER COMMENTS</span>
+            <strong><span data-summary="comment-total">0</span> lượt</strong>
+            <div class="daily-summary-breakdown">
+              <span>Có hashtag <strong data-summary="comment-hashtag">0</strong></span>
+              <span>Không hashtag <strong data-summary="comment-plain">0</strong></span>
+            </div>
+          </div>
+          <div class="daily-summary-row">
+            <span>X</span><strong><span data-summary="google">0</span> lượt</strong>
+          </div>
+        </div>
+        <div class="daily-summary-total">
+          <span>TỔNG LƯỢT COPY</span><strong><span data-summary="total">0</span></strong>
+        </div>
+        <p class="daily-summary-message">Mỗi lần bạn cố gắng đều đáng quý. Hôm nay cũng cùng nhau tiến lên nhé!</p>
+        <button class="action-button daily-summary-continue" type="button" data-close-daily-summary>Tiếp tục</button>
+      </div>
     </dialog>
   </body>
 </html>
