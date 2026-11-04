@@ -291,7 +291,7 @@ function recordDailyCopy(kind) {
 
 function maybeShowDailySummary() {
   const summaryDate = previousDate(seoulDate());
-  if (summaryDate < dailyActivity.startedOn || dailyActivity.lastShownDate === summaryDate) {
+  if (dailyActivity.lastShownDate === summaryDate) {
     return;
   }
   const saved = readStored(STORAGE_KEYS.dailyActivity, null);
