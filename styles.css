@@ -368,10 +368,10 @@ p {
   justify-content: center;
   gap: 3px;
   margin: 12px 0;
-  border: 1px solid #f4d3e2;
+  border: 1px solid #e4d5ed;
   border-radius: 17px;
-  background: #fff8fb;
-  color: #c65a8a;
+  background: #f9f5fb;
+  color: #59256e;
 }
 
 .x-copy-total span {
