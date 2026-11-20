@@ -5,6 +5,8 @@ const STORAGE_KEYS = {
   hideCopied: "eomland.comments.hideCopied.v1",
   dailyActivity: "eomland.activity.daily.v1",
 };
+const SUPABASE_URL = "https://kqqtmvhcikkzmymyldjt.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_meVqQTG6MNRy82qPIV2Mdg_C_RoqWNw";
 
 const main = document.querySelector("#app-main");
 const clock = document.querySelector("#seoul-clock");
@@ -52,6 +54,67 @@ let copyMessageKind = "";
 let manualCopyText = "";
 let toastMessage = "";
 let toastTimer;
+let globalXCopyCount = null;
+let globalXCopyCountError = false;
+let globalXCopyRequestId = 0;
+
+async function requestXCopyCountRpc(functionName) {
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${functionName}`, {
+    method: "POST",
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      "Content-Type": "application/json",
+    },
+    body: "{}",
+  });
+  if (!response.ok) {
+    throw new Error(`Supabase ${functionName} failed: ${response.status}`);
+  }
+  const count = await response.json();
+  if (!Number.isSafeInteger(count) || count < 0) {
+    throw new Error(`Supabase ${functionName} returned an invalid copy count`);
+  }
+  return count;
+}
+
+function renderXCopyCount() {
+  const output = main.querySelector("[data-x-copy-count]");
+  if (output) {
+    output.textContent = globalXCopyCount === null
+      ? (globalXCopyCountError ? "Chưa kết nối" : "…")
+      : globalXCopyCount.toLocaleString("en-US");
+  }
+}
+
+async function refreshXCopyCount() {
+  const requestId = ++globalXCopyRequestId;
+  globalXCopyCountError = false;
+  renderXCopyCount();
+  try {
+    globalXCopyCount = await requestXCopyCountRpc("get_eomland_x_copy_count");
+    globalXCopyCountError = false;
+  } catch (error) {
+    console.error("Unable to load global X copy count", error);
+    globalXCopyCountError = true;
+  }
+  if (requestId === globalXCopyRequestId) {
+    renderXCopyCount();
+  }
+}
+
+async function incrementXCopyCount() {
+  const requestId = ++globalXCopyRequestId;
+  try {
+    globalXCopyCount = await requestXCopyCountRpc("increment_eomland_x_copy_count");
+    globalXCopyCountError = false;
+  } catch (error) {
+    console.error("Unable to increment global X copy count", error);
+    globalXCopyCountError = true;
+  }
+  if (requestId === globalXCopyRequestId) {
+    renderXCopyCount();
+  }
+}
 
 function showNotice(message) {
   toastMessage = message;
@@ -762,6 +825,12 @@ function renderGoogle() {
           : `<p class="keyword-text google-content-text">${escapeHtml(currentKeyword)}</p>`}
         ${renderCopyStatus()}
       </article>
+      <aside class="x-copy-total" aria-label="Tổng số lượt sao chép X">
+        <span>TOTAL COPIES</span>
+        <strong data-x-copy-count aria-live="polite">${globalXCopyCount === null
+    ? (globalXCopyCountError ? "Chưa kết nối" : "…")
+    : globalXCopyCount.toLocaleString("en-US")}</strong>
+      </aside>
       ${renderManualCopy()}
       <button class="action-button full-width-action" type="button" data-copy="google" ${copyInProgress || currentKeyword === null ? "disabled" : ""}>COPY</button>
     </section>`;
@@ -1046,6 +1115,7 @@ async function copyCurrent(kind) {
     } else if (kind === "google") {
       googleState.copied.push(googleState.currentIndex);
       advanceGoogle();
+      incrementXCopyCount();
     } else if (kind === "comment-with-hashtag") {
       if (!commentSetState.copied.includes(commentIndex)) {
         commentSetState.copied.push(commentIndex);
@@ -1085,6 +1155,9 @@ function setView(view) {
     copyMessage = "";
     manualCopyText = "";
     render();
+    if (view === "google") {
+      refreshXCopyCount();
+    }
   }
 }
 

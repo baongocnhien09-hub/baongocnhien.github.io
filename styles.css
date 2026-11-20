@@ -360,6 +360,32 @@ p {
   line-height: 1.75;
 }
 
+.x-copy-total {
+  display: flex;
+  min-height: 78px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  margin: 12px 0;
+  border: 1px solid #f4d3e2;
+  border-radius: 17px;
+  background: #fff8fb;
+  color: #c65a8a;
+}
+
+.x-copy-total span {
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.15em;
+}
+
+.x-copy-total strong {
+  font-size: 27px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
 .x-screen .counter-line {
   margin-top: 6px;
   font-size: 10px;
