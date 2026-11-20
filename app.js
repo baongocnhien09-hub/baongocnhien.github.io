@@ -751,7 +751,7 @@ function renderHome() {
           <span class="menu-arrow" aria-hidden="true">›</span>
         </button>
         <button class="menu-card" type="button" data-view="google">
-          <span class="menu-card-copy"><strong>X</strong></span>
+          <span class="menu-card-copy"><strong>MASS X</strong></span>
           <span class="menu-arrow" aria-hidden="true">›</span>
         </button>
       </nav>
