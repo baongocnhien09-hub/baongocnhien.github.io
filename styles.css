@@ -350,14 +350,14 @@ p {
 }
 
 .x-screen .keyword-panel {
-  padding: 10px 12px;
+  padding: 24px;
   border-radius: 18px;
 }
 
 .x-screen .keyword-panel .google-content-text {
-  font-size: clamp(13px, 3.8vw, 16px);
-  font-weight: 650;
-  line-height: 1.35;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.75;
 }
 
 .x-screen .counter-line {

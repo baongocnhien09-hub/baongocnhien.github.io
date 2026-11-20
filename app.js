@@ -753,7 +753,7 @@ function renderGoogle() {
       <article class="keyword-panel">
         ${currentKeyword === null
           ? `<div class="empty-comments">Bạn đã copy hết ${data.googleKeywords.length} nội dung.<br />Xóa lịch sử X trong Cài đặt để bắt đầu lại.</div>`
-          : `<p class="keyword-text google-content-text">${escapeHtml(currentKeyword).replace(/(?:\r?\n){2,}/g, "\n")}</p>`}
+          : `<p class="keyword-text google-content-text">${escapeHtml(currentKeyword)}</p>`}
         <p class="counter-line">Đã copy ${googleState.copied.length} · Còn lại ${data.googleKeywords.length - googleState.copied.length}</p>
         ${renderCopyStatus()}
       </article>
