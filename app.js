@@ -1,6 +1,6 @@
 const STORAGE_KEYS = {
   naver: "eomland.search.naver.v1",
-  google: "eomland.search.google.v2",
+  google: "eomland.search.google.v3",
   comments: "eomland.comments.v2",
   hideCopied: "eomland.comments.hideCopied.v1",
   dailyActivity: "eomland.activity.daily.v1",
@@ -598,19 +598,6 @@ function advanceGoogle() {
   saveGoogle();
 }
 
-function randomizeGoogle() {
-  if (googleState.currentIndex === null) {
-    copyMessage = `Bạn đã copy hết ${data.googleKeywords.length} nội dung. Xóa lịch sử X trong Cài đặt để bắt đầu lại.`;
-    copyMessageKind = "";
-    render();
-    return;
-  }
-  advanceGoogle();
-  copyMessage = "";
-  manualCopyText = "";
-  render();
-}
-
 function eligibleComments(set, state) {
   const indexes = set.comments.map((_, index) => index);
   return state.hideCopied ? indexes.filter((index) => !state.copied.includes(index)) : indexes;
@@ -771,10 +758,7 @@ function renderGoogle() {
         ${renderCopyStatus()}
       </article>
       ${renderManualCopy()}
-      <div class="button-row">
-        <button class="action-button" type="button" data-copy="google" ${copyInProgress || currentKeyword === null ? "disabled" : ""}>COPY</button>
-        <button class="action-button" type="button" data-action="random-google" ${copyInProgress || currentKeyword === null ? "disabled" : ""}>RANDOM</button>
-      </div>
+      <button class="action-button full-width-action" type="button" data-copy="google" ${copyInProgress || currentKeyword === null ? "disabled" : ""}>COPY</button>
     </section>`;
 }
 
@@ -1199,8 +1183,6 @@ main.addEventListener("click", (event) => {
     copyCurrent(button.dataset.copy);
   } else if (button.dataset.action === "random-naver") {
     randomizeNaver();
-  } else if (button.dataset.action === "random-google") {
-    randomizeGoogle();
   } else if (button.dataset.action === "random-comment") {
     randomizeComment();
   }
