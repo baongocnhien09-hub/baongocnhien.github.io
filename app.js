@@ -825,14 +825,14 @@ function renderGoogle() {
           : `<p class="keyword-text google-content-text">${escapeHtml(currentKeyword)}</p>`}
         ${renderCopyStatus()}
       </article>
+      ${renderManualCopy()}
+      <button class="action-button full-width-action" type="button" data-copy="google" ${copyInProgress || currentKeyword === null ? "disabled" : ""}>COPY</button>
       <aside class="x-copy-total" aria-label="Tổng số lượt sao chép X">
         <span>TOTAL COPIES</span>
         <strong data-x-copy-count aria-live="polite">${globalXCopyCount === null
     ? (globalXCopyCountError ? "Chưa kết nối" : "…")
     : globalXCopyCount.toLocaleString("en-US")}</strong>
       </aside>
-      ${renderManualCopy()}
-      <button class="action-button full-width-action" type="button" data-copy="google" ${copyInProgress || currentKeyword === null ? "disabled" : ""}>COPY</button>
     </section>`;
 }
 
