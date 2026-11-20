@@ -336,6 +336,41 @@ p {
   width: 100%;
 }
 
+.x-screen .back-button {
+  margin-bottom: 12px;
+  font-size: 12px;
+}
+
+.x-screen .view-heading {
+  margin-bottom: 10px;
+}
+
+.x-screen .view-heading h1 {
+  font-size: 20px;
+}
+
+.x-screen .keyword-panel {
+  padding: 10px 12px;
+  border-radius: 18px;
+}
+
+.x-screen .keyword-panel .google-content-text {
+  font-size: clamp(13px, 3.8vw, 16px);
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.x-screen .counter-line {
+  margin-top: 6px;
+  font-size: 10px;
+}
+
+.x-screen .full-width-action {
+  min-height: 42px;
+  border-radius: 14px;
+  font-size: 12px;
+}
+
 .back-button {
   display: inline-flex;
   align-items: center;

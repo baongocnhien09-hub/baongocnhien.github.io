@@ -747,13 +747,13 @@ function renderGoogle() {
     ? null
     : data.googleKeywords[googleState.currentIndex];
   return `
-    <section class="view-screen">
+    <section class="view-screen x-screen">
       <button class="back-button" type="button" data-view="home">← <span>Trang chủ</span></button>
-      <div class="view-heading"><p class="eyebrow">${data.googleKeywords.length} MẪU COPY</p><h1>X</h1></div>
+      <div class="view-heading"><h1>X</h1></div>
       <article class="keyword-panel">
         ${currentKeyword === null
           ? `<div class="empty-comments">Bạn đã copy hết ${data.googleKeywords.length} nội dung.<br />Xóa lịch sử X trong Cài đặt để bắt đầu lại.</div>`
-          : `<p class="keyword-text google-content-text">${escapeHtml(currentKeyword)}</p>`}
+          : `<p class="keyword-text google-content-text">${escapeHtml(currentKeyword).replace(/(?:\r?\n){2,}/g, "\n")}</p>`}
         <p class="counter-line">Đã copy ${googleState.copied.length} · Còn lại ${data.googleKeywords.length - googleState.copied.length}</p>
         ${renderCopyStatus()}
       </article>
