@@ -403,9 +403,12 @@ let dailyActivity;
 
 function loadGoogleState() {
   const saved = readStored(STORAGE_KEYS.google, null);
-  const copied = saved && Array.isArray(saved.copied)
+  let copied = saved && Array.isArray(saved.copied)
     ? [...new Set(saved.copied.filter((index) => Number.isInteger(index) && index >= 0 && index < data.googleKeywords.length))]
     : [];
+  if (copied.length >= data.googleKeywords.length) {
+    copied = [];
+  }
   const candidates = data.googleKeywords.map((_, index) => index).filter((index) => !copied.includes(index));
   const savedIndexIsValid = saved
     && Number.isInteger(saved.currentIndex)
@@ -588,6 +591,9 @@ function randomizeNaver() {
 }
 
 function advanceGoogle() {
+  if (googleState.copied.length >= data.googleKeywords.length) {
+    googleState.copied = [];
+  }
   const options = data.googleKeywords.map((_, index) => index)
     .filter((index) => !googleState.copied.includes(index) && index !== googleState.currentIndex);
   if (options.length === 0 && googleState.currentIndex !== null
@@ -752,9 +758,8 @@ function renderGoogle() {
       <div class="view-heading"><h1>X</h1></div>
       <article class="keyword-panel">
         ${currentKeyword === null
-          ? `<div class="empty-comments">Bạn đã copy hết ${data.googleKeywords.length} nội dung.<br />Xóa lịch sử X trong Cài đặt để bắt đầu lại.</div>`
+          ? `<div class="empty-comments">Đang tải nội dung X…</div>`
           : `<p class="keyword-text google-content-text">${escapeHtml(currentKeyword)}</p>`}
-        <p class="counter-line">Đã copy ${googleState.copied.length} · Còn lại ${data.googleKeywords.length - googleState.copied.length}</p>
         ${renderCopyStatus()}
       </article>
       ${renderManualCopy()}
